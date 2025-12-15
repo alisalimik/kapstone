@@ -23,7 +23,7 @@ abstract class BuildCapstoneTask @Inject constructor(
     @get:Input
     var targetName: String = ""
 
-    @get:Input
+    @get:Internal
     abstract val rootProjectDir: DirectoryProperty
 
     @get:Input
@@ -50,7 +50,7 @@ abstract class BuildCapstoneTask @Inject constructor(
     @get:Input
     abstract val llvmNmPath: Property<String>
 
-    @get:InputDirectory
+    @get:Internal
     abstract val buildDirectory: DirectoryProperty
 
     @TaskAction
