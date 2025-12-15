@@ -59,17 +59,31 @@ fun buildCapstoneWasmFromContext(buildContext: BuildContext, targetName: String)
     buildContext.logger.lifecycle("Configuring CMake for WebAssembly static library...")
     buildDir.mkdirs()
 
+
+
+    // Create a wrapper CMakeLists.txt to avoid PROJECT_IS_TOP_LEVEL being true for Capstone
+    // This prevents CPackConfig.txt from being included, which causes errors in some environments
+    val wrapperCMakeFile = File(buildDir, "CMakeLists.txt")
+    wrapperCMakeFile.writeText("""
+        cmake_minimum_required(VERSION 3.15)
+        project(CapstoneWasmWrapper)
+
+        # Set options to disable unwanted features
+        set(CAPSTONE_BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+        set(CAPSTONE_BUILD_STATIC_LIBS ON CACHE BOOL "" FORCE)
+        set(CAPSTONE_BUILD_CSTOOL OFF CACHE BOOL "" FORCE)
+        set(CAPSTONE_INSTALL OFF CACHE BOOL "" FORCE)
+        set(CAPSTONE_ARCHITECTURE_DEFAULT ON CACHE BOOL "" FORCE)
+
+        add_subdirectory("${capstoneSource.absolutePath}" capstone)
+    """.trimIndent())
+
     val cmakeConfigArgs = listOf(
-        "cmake", "-S", capstoneSource.absolutePath, "-B", buildDir.absolutePath,
+        "cmake", "-S", buildDir.absolutePath, "-B", buildDir.absolutePath,
         "-DCMAKE_TOOLCHAIN_FILE=$toolchainFile",
         "-DCMAKE_C_COMPILER=$emcc",
         "-DCMAKE_CXX_COMPILER=$emcpp",
-        "-DCMAKE_BUILD_TYPE=Release",
-        "-DCAPSTONE_BUILD_SHARED_LIBS=OFF",
-        "-DCAPSTONE_BUILD_STATIC_LIBS=ON",
-        "-DCAPSTONE_BUILD_CSTOOL=OFF",
-        "-DCAPSTONE_INSTALL=OFF",
-        "-DCAPSTONE_ARCHITECTURE_DEFAULT=ON"
+        "-DCMAKE_BUILD_TYPE=Release"
     )
 
     buildContext.execOperations.exec {
@@ -85,7 +99,8 @@ fun buildCapstoneWasmFromContext(buildContext: BuildContext, targetName: String)
         isIgnoreExitValue = false
     }
 
-    val staticLib = File(buildDir, "libcapstone.a")
+    // Since we are using add_subdirectory, the static lib is in the subdirectory
+    val staticLib = File(buildDir, "capstone/libcapstone.a")
     if (!staticLib.exists()) {
         throw createException("Static library build failed. File not found: ${staticLib.absolutePath}")
     }
