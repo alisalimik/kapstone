@@ -27,10 +27,10 @@ internal fun getZigToolchainFile(buildDirectory: File): File {
             set(CMAKE_CXX_COMPILER "zig")
             set(CMAKE_C_COMPILER_ARG1 "cc")
             set(CMAKE_CXX_COMPILER_ARG1 "c++")
-            set(CMAKE_AR "zig" CACHE STRING "" FORCE)
-            set(CMAKE_RANLIB "zig" CACHE STRING "" FORCE)
-            set(CMAKE_C_COMPILER_AR "zig" CACHE STRING "" FORCE)
-            set(CMAKE_CXX_COMPILER_AR "zig" CACHE STRING "" FORCE)
+            set(CMAKE_AR "zig;ar" CACHE STRING "" FORCE)
+            set(CMAKE_RANLIB "zig;ranlib" CACHE STRING "" FORCE)
+            set(CMAKE_C_COMPILER_AR "zig;ar" CACHE STRING "" FORCE)
+            set(CMAKE_CXX_COMPILER_AR "zig;ar" CACHE STRING "" FORCE)
 
             # Fix for Zig + Ninja/Make dependency file issue by suppressing the flags
             set(CMAKE_DEPFILE_FLAGS_C "" CACHE STRING "" FORCE)
@@ -136,6 +136,16 @@ fun Project.registerCapstoneBuildTasks() {
     }
 
     afterEvaluate {
+        // Make Android preBuild task depend on building all Android Capstone libraries
+        tasks.findByName("preBuild")?.let { preBuildTask ->
+            val buildCapstoneAndroidTask = tasks.findByName("buildCapstoneAndroid")
+            if (buildCapstoneAndroidTask != null) {
+                preBuildTask.dependsOn(buildCapstoneAndroidTask)
+                logger.info("Configured preBuild to depend on buildCapstoneAndroid")
+            }
+        }
+
+        // Make cinterop tasks depend on corresponding Capstone build tasks
         tasks.matching { it.name.contains("cinterop", ignoreCase = true) }.configureEach(object : Action<Task> {
             override fun execute(cinteropTask: Task) {
                 val targetName = extractTargetFromCinteropTaskName(cinteropTask.name)
@@ -143,6 +153,20 @@ fun Project.registerCapstoneBuildTasks() {
                     val capstoneBuildTask = tasks.findByName("buildCapstone${targetName.capitalize()}")
                     if (capstoneBuildTask != null) {
                         cinteropTask.dependsOn(capstoneBuildTask)
+                    }
+                }
+            }
+        })
+
+        // Make Kotlin native compilation tasks depend on corresponding Capstone build tasks
+        tasks.matching { it.name.startsWith("compileKotlin") && !it.name.contains("Metadata") }.configureEach(object : Action<Task> {
+            override fun execute(compileTask: Task) {
+                val targetName = extractTargetFromCompileTaskName(compileTask.name)
+                if (targetName != null) {
+                    val capstoneBuildTask = tasks.findByName("buildCapstone${targetName.capitalize()}")
+                    if (capstoneBuildTask != null) {
+                        compileTask.dependsOn(capstoneBuildTask)
+                        logger.info("Configured ${compileTask.name} to depend on buildCapstone${targetName.capitalize()}")
                     }
                 }
             }
@@ -156,6 +180,15 @@ private fun String.capitalize(): String {
 
 private fun extractTargetFromCinteropTaskName(taskName: String): String? {
     val pattern = """cinterop\w+([A-Z][a-zA-Z0-9]+)""".toRegex()
+    val match = pattern.find(taskName)
+    return match?.groupValues?.get(1)?.let {
+        it.replaceFirstChar { char -> char.lowercase() }
+    }
+}
+
+private fun extractTargetFromCompileTaskName(taskName: String): String? {
+    // Task names like "compileKotlinAndroidNativeArm64", "compileKotlinIosArm64", etc.
+    val pattern = """compileKotlin([A-Z][a-zA-Z0-9]+)""".toRegex()
     val match = pattern.find(taskName)
     return match?.groupValues?.get(1)?.let {
         it.replaceFirstChar { char -> char.lowercase() }

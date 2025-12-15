@@ -114,27 +114,17 @@ object CapstoneBuildConfigs {
         val useZig = project.toolchains.hasZig.get()
         val useCrossGCC = triple != null && project.toolchains.commandExists("$triple-gcc").get()
 
-        if (useZig) {
+        // Prefer cross-GCC over Zig for better reliability
+        if (useCrossGCC) {
+            println("Configuration: Enabling Linux target $targetName using cross-GCC ($triple-gcc)")
+        } else if (useZig) {
             println("Configuration: Enabling Linux target $targetName using Zig")
         } else {
-            println("Configuration: Zig not found, checking for cross-GCC for $targetName...")
+            println("Configuration: No cross-compilation toolchain found for $targetName")
         }
 
         return when {
-            useZig -> CapstoneBuildConfig(
-                targetName = targetName,
-                cmakeSystemName = "Linux", // Explicitly set for cross-compilation
-                cCompiler = "zig",
-                cxxCompiler = "zig",
-                additionalCMakeArgs = listOf(
-                    // Toolchain file handles compiler setup, we just pass arch flags here if needed
-                    // Zig uses -target for cross compilation
-                    "-DCMAKE_C_FLAGS=-target $arch-linux-gnu",
-                    "-DCMAKE_CXX_FLAGS=-target $arch-linux-gnu"
-                ),
-                enabled = true,
-                buildShared = shared
-            )
+            // Prefer cross-GCC first for better reliability on macOS
             useCrossGCC -> CapstoneBuildConfig(
                 targetName = targetName,
                 cCompiler = "$triple-gcc",
@@ -145,6 +135,20 @@ object CapstoneBuildConfigs {
                     "-DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY",
                     "-DCMAKE_OSX_ARCHITECTURES=",
                     "-DCMAKE_OSX_SYSROOT="
+                ),
+                enabled = true,
+                buildShared = shared
+            )
+            useZig -> CapstoneBuildConfig(
+                targetName = targetName,
+                cmakeSystemName = "Linux", // Explicitly set for cross-compilation
+                cCompiler = "zig",
+                cxxCompiler = "zig",
+                additionalCMakeArgs = listOf(
+                    // Toolchain file handles compiler setup, we just pass arch flags here if needed
+                    // Zig uses -target for cross compilation
+                    "-DCMAKE_C_FLAGS=-target $arch-linux-gnu",
+                    "-DCMAKE_CXX_FLAGS=-target $arch-linux-gnu"
                 ),
                 enabled = true,
                 buildShared = shared

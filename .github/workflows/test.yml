@@ -156,15 +156,20 @@ jobs:
           # Add cross-compilation toolchains tap
           brew tap messense/macos-cross-toolchains
 
-          # Install Zig for cross-compilation
-          brew install zig || true
+          # Install Linux cross-compilation toolchains (preferred over Zig)
+          echo "Installing Linux x86_64 cross-toolchain..."
+          brew install x86_64-unknown-linux-gnu || echo "x86_64-unknown-linux-gnu installation failed"
 
-          # Install Linux cross-compilation toolchains
-          brew install x86_64-unknown-linux-gnu || true
-          brew install aarch64-unknown-linux-gnu || true
+          echo "Installing Linux aarch64 (ARM64) cross-toolchain..."
+          brew install aarch64-unknown-linux-gnu || echo "aarch64-unknown-linux-gnu installation failed"
 
           # Install MinGW for Windows cross-compilation
-          brew install mingw-w64 || true
+          echo "Installing MinGW for Windows..."
+          brew install mingw-w64 || echo "mingw-w64 installation failed"
+
+          # Install Zig as fallback
+          echo "Installing Zig as fallback..."
+          brew install zig || echo "zig installation failed"
 
       - name: Select Xcode version
         run: |
@@ -423,8 +428,7 @@ jobs:
           echo "=== Emscripten SDK Verification ==="
           emcc --version
           em++ --version
-          emcmake --version
-          which emcc
+          which emcmake
           echo ""
           echo "=== Emscripten Configuration ==="
           emcc --show-ports
