@@ -47,12 +47,23 @@ fun buildCapstoneWasmFromContext(buildContext: BuildContext, targetName: String)
         throw createException("Emscripten toolchain not found")
     }
 
+    val emRoot = buildContext.emscriptenRoot
+    if (emRoot == null || !emRoot.exists()) {
+        buildContext.logger.error("Could not find Emscripten root")
+        throw createException("Emscripten root not found")
+    }
+
+    val emcc = File(emRoot, "emcc").absolutePath
+    val emcpp = File(emRoot, "em++").absolutePath
+
     buildContext.logger.lifecycle("Configuring CMake for WebAssembly static library...")
     buildDir.mkdirs()
 
     val cmakeConfigArgs = listOf(
         "cmake", "-S", capstoneSource.absolutePath, "-B", buildDir.absolutePath,
         "-DCMAKE_TOOLCHAIN_FILE=$toolchainFile",
+        "-DCMAKE_C_COMPILER=$emcc",
+        "-DCMAKE_CXX_COMPILER=$emcpp",
         "-DCMAKE_BUILD_TYPE=Release",
         "-DCAPSTONE_BUILD_SHARED_LIBS=OFF",
         "-DCAPSTONE_BUILD_STATIC_LIBS=ON",
@@ -125,7 +136,7 @@ fun buildCapstoneWasmFromContext(buildContext: BuildContext, targetName: String)
         buildContext.logger.lifecycle("Linking WASI module...")
 
         val emccArgs = listOf(
-            "emcc", staticLib.absolutePath,
+            emcc, staticLib.absolutePath,
             "-o", File(distDir, "capstone-wasi.wasm").absolutePath,
             "-O3",
             "-s", "WASM=1",
@@ -147,7 +158,7 @@ fun buildCapstoneWasmFromContext(buildContext: BuildContext, targetName: String)
         val exportedRuntime = "['ccall','cwrap','getValue','setValue','UTF8ToString','writeArrayToMemory','addFunction','removeFunction']"
 
         val emccArgs = listOf(
-            "emcc", staticLib.absolutePath,
+            emcc, staticLib.absolutePath,
             "-o", File(distDir, "capstone.js").absolutePath,
             "-O3",
             "-s", "WASM=1",

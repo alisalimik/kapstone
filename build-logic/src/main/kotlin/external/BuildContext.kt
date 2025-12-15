@@ -21,6 +21,7 @@ data class BuildContext(
     val mingwX86: Boolean,
     val hasEmscripten: Boolean,
     val emscriptenToolchainFile: String,
+    val emscriptenRoot: File?,
     val llvmNmPath: String,
     val androidNdkPath: String?,
     val logger: Logger,

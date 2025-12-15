@@ -51,6 +51,9 @@ abstract class BuildCapstoneTask @Inject constructor(
     abstract val emscriptenToolchainFile: Property<String>
 
     @get:Input
+    abstract val emscriptenRoot: Property<String>
+
+    @get:Input
     abstract val llvmNmPath: Property<String>
 
     @get:Input
@@ -72,6 +75,7 @@ abstract class BuildCapstoneTask @Inject constructor(
             mingwX86 = mingwX86.get(),
             hasEmscripten = hasEmscripten.get(),
             emscriptenToolchainFile = emscriptenToolchainFile.get(),
+            emscriptenRoot = emscriptenRoot.orNull?.takeIf { it.isNotEmpty() }?.let { java.io.File(it) },
             llvmNmPath = llvmNmPath.get(),
             androidNdkPath = androidNdkPath.orNull?.takeIf { it.isNotEmpty() },
             logger = logger,
