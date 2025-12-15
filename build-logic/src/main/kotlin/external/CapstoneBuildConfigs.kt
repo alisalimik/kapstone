@@ -353,4 +353,101 @@ object CapstoneBuildConfigs {
         "mingwX64Shared",
         "mingwX86Shared"
     )
+
+    /**
+     * Configuration-cache compatible version of getConfigs that uses BuildContext
+     * instead of Project
+     */
+    fun getConfigsFromContext(buildContext: BuildContext): Map<String, CapstoneBuildConfig> {
+        // Helper to create Linux configs with captured toolchain state
+        fun linuxConfigFromContext(targetName: String, arch: String, triple: String? = null, shared: Boolean = false): CapstoneBuildConfig {
+            // Since we can't check for tools at execution time in a config-cache-safe way,
+            // we'll use the captured state from BuildContext
+            // For simplicity, assume configs are enabled if we're on a compatible host
+            return CapstoneBuildConfig(
+                targetName = targetName,
+                cmakeSystemName = "Linux",
+                cmakeSystemProcessor = arch,
+                enabled = buildContext.linuxX64OnMac || buildContext.nativeLinux,
+                buildShared = shared
+            )
+        }
+
+        // Helper to create mingw configs
+        fun mingwConfigFromContext(targetName: String, arch: String, shared: Boolean = false): CapstoneBuildConfig {
+            return CapstoneBuildConfig(
+                targetName = targetName,
+                cmakeSystemName = "Windows",
+                cmakeSystemProcessor = arch,
+                enabled = buildContext.mingwX64 || buildContext.mingwX86,
+                buildShared = shared
+            )
+        }
+
+        return mapOf(
+            // macOS
+            "macosX64" to macOSConfig("macosX64", "x86_64"),
+            "macosArm64" to macOSConfig("macosArm64", "arm64"),
+
+            // macOS Shared (for JVM)
+            "macosX64Shared" to macOSConfig("macosX64Shared", "x86_64", shared = true),
+            "macosArm64Shared" to macOSConfig("macosArm64Shared", "arm64", shared = true),
+
+            // iOS
+            "iosX64" to iOSConfig("iosX64", "x86_64", "iphonesimulator"),
+            "iosArm64" to iOSConfig("iosArm64", "arm64", "iphoneos"),
+            "iosSimulatorArm64" to iOSConfig("iosSimulatorArm64", "arm64", "iphonesimulator"),
+
+            // watchOS
+            "watchosX64" to watchOSConfig("watchosX64", "x86_64", "watchsimulator"),
+            "watchosArm64" to watchOSConfig("watchosArm64", "arm64_32", "watchos", minVersion = "5.0"),
+            "watchosArm32" to watchOSConfig("watchosArm32", "armv7k", "watchos"),
+            "watchosDeviceArm64" to watchOSConfig("watchosDeviceArm64", "arm64", "watchos", minVersion = "9.0"),
+            "watchosSimulatorArm64" to watchOSConfig("watchosSimulatorArm64", "arm64", "watchsimulator"),
+
+            // tvOS
+            "tvosX64" to tvOSConfig("tvosX64", "x86_64", "appletvsimulator"),
+            "tvosArm64" to tvOSConfig("tvosArm64", "arm64", "appletvos"),
+            "tvosSimulatorArm64" to tvOSConfig("tvosSimulatorArm64", "arm64", "appletvsimulator"),
+
+            // Linux - use simplified configs
+            "linuxX64" to linuxConfigFromContext("linuxX64", "x86_64"),
+            "linuxArm64" to linuxConfigFromContext("linuxArm64", "aarch64"),
+
+            // Linux Shared (for JVM)
+            "linuxX64Shared" to linuxConfigFromContext("linuxX64Shared", "x86_64", shared = true),
+            "linuxX86Shared" to linuxConfigFromContext("linuxX86Shared", "x86", shared = true),
+            "linuxArm64Shared" to linuxConfigFromContext("linuxArm64Shared", "aarch64", shared = true),
+            "linuxArm32Shared" to linuxConfigFromContext("linuxArm32Shared", "arm", shared = true),
+
+            // Windows
+            "mingwX64" to mingwConfigFromContext("mingwX64", "x86_64"),
+
+            // Windows Shared (for JVM)
+            "mingwX64Shared" to mingwConfigFromContext("mingwX64Shared", "x86_64", shared = true),
+            "mingwX86Shared" to mingwConfigFromContext("mingwX86Shared", "x86", shared = true),
+
+            // Android Native (static for native targets)
+            "androidNativeArm64" to androidNativeConfig("androidNativeArm64", "arm64-v8a"),
+            "androidNativeArm32" to androidNativeConfig("androidNativeArm32", "armeabi-v7a"),
+            "androidNativeX64" to androidNativeConfig("androidNativeX64", "x86_64"),
+            "androidNativeX86" to androidNativeConfig("androidNativeX86", "x86"),
+
+            // Android Shared (for Android runtime)
+            "androidArm64Shared" to androidNativeConfig("androidArm64Shared", "arm64-v8a", buildShared = true),
+            "androidArm32Shared" to androidNativeConfig("androidArm32Shared", "armeabi-v7a", buildShared = true),
+            "androidX64Shared" to androidNativeConfig("androidX64Shared", "x86_64", buildShared = true),
+            "androidX86Shared" to androidNativeConfig("androidX86Shared", "x86", buildShared = true),
+
+            // WASM (configuration cache compatible - check emscripten from context)
+            "wasmJs" to CapstoneBuildConfig(
+                targetName = "wasmJs",
+                enabled = buildContext.hasEmscripten
+            ),
+            "wasmWasi" to CapstoneBuildConfig(
+                targetName = "wasmWasi",
+                enabled = buildContext.hasEmscripten
+            )
+        )
+    }
 }

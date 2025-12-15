@@ -1,26 +1,13 @@
 package external.tasks
 
-import external.buildCapstoneForAllTargets
 import org.gradle.api.DefaultTask
-import org.gradle.api.tasks.TaskAction
-import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
-import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 
 /**
- * Task to build Capstone for all native targets
+ * Task to build Capstone for all native targets.
+ * This is an aggregator task that depends on all individual build tasks.
+ * Dependencies are configured at configuration time in registerCapstoneBuildTasks().
  */
 abstract class BuildAllCapstoneTask : DefaultTask() {
-
-    @TaskAction
-    fun buildAllCapstone() {
-        val kotlin = project.extensions.findByType(KotlinMultiplatformExtension::class.java)
-        if (kotlin == null) {
-            project.logger.warn("KotlinMultiplatformExtension not found, skipping Capstone build")
-            return
-        }
-
-        val nativeTargets = kotlin.targets.filterIsInstance<KotlinNativeTarget>()
-
-        buildCapstoneForAllTargets(project, nativeTargets)
-    }
+    // No task action needed - this is just an aggregator task
+    // Dependencies are configured at configuration time
 }

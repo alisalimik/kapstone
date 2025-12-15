@@ -1,19 +1,75 @@
 package external.tasks
 
+import external.BuildContext
 import external.buildCapstoneForTarget
 import org.gradle.api.DefaultTask
+import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.file.FileSystemOperations
+import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.InputDirectory
+import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.TaskAction
+import org.gradle.process.ExecOperations
+import javax.inject.Inject
 
 /**
  * Task to build Capstone for a specific target
  */
-abstract class BuildCapstoneTask : DefaultTask() {
+abstract class BuildCapstoneTask @Inject constructor(
+    private val execOperations: ExecOperations,
+    private val fileSystemOperations: FileSystemOperations
+) : DefaultTask() {
     @get:Input
     var targetName: String = ""
 
+    @get:Input
+    abstract val rootProjectDir: DirectoryProperty
+
+    @get:Input
+    abstract val hasNinja: Property<Boolean>
+
+    @get:Input
+    abstract val linuxX64OnMac: Property<Boolean>
+
+    @get:Input
+    abstract val nativeLinux: Property<Boolean>
+
+    @get:Input
+    abstract val mingwX64: Property<Boolean>
+
+    @get:Input
+    abstract val mingwX86: Property<Boolean>
+
+    @get:Input
+    abstract val hasEmscripten: Property<Boolean>
+
+    @get:Input
+    abstract val emscriptenToolchainFile: Property<String>
+
+    @get:Input
+    abstract val llvmNmPath: Property<String>
+
+    @get:InputDirectory
+    abstract val buildDirectory: DirectoryProperty
+
     @TaskAction
     fun buildCapstone() {
-        buildCapstoneForTarget(project, targetName)
+        val buildContext = BuildContext(
+            rootProjectDir = rootProjectDir.get().asFile,
+            buildDirectory = buildDirectory.get().asFile,
+            hasNinja = hasNinja.get(),
+            linuxX64OnMac = linuxX64OnMac.get(),
+            nativeLinux = nativeLinux.get(),
+            mingwX64 = mingwX64.get(),
+            mingwX86 = mingwX86.get(),
+            hasEmscripten = hasEmscripten.get(),
+            emscriptenToolchainFile = emscriptenToolchainFile.get(),
+            llvmNmPath = llvmNmPath.get(),
+            logger = logger,
+            execOperations = execOperations,
+            fileSystemOperations = fileSystemOperations
+        )
+        buildCapstoneForTarget(buildContext, targetName)
     }
 }

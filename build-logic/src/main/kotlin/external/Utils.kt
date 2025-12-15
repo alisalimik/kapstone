@@ -7,6 +7,7 @@ import org.gradle.api.Project
 import org.gradle.api.Task
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
+import platform.toolchains
 import java.io.File
 
 internal fun createException(message: String): RuntimeException {
@@ -14,7 +15,11 @@ internal fun createException(message: String): RuntimeException {
 }
 
 internal fun getZigToolchainFile(project: Project): File {
-    val toolchainFile = File(project.layout.buildDirectory.get().asFile, "toolchains/zig-toolchain.cmake")
+    return getZigToolchainFile(project.layout.buildDirectory.get().asFile)
+}
+
+internal fun getZigToolchainFile(buildDirectory: File): File {
+    val toolchainFile = File(buildDirectory, "toolchains/zig-toolchain.cmake")
     if (!toolchainFile.exists()) {
         toolchainFile.parentFile.mkdirs()
         toolchainFile.writeText("""
@@ -26,7 +31,7 @@ internal fun getZigToolchainFile(project: Project): File {
             set(CMAKE_RANLIB "zig" CACHE STRING "" FORCE)
             set(CMAKE_C_COMPILER_AR "zig" CACHE STRING "" FORCE)
             set(CMAKE_CXX_COMPILER_AR "zig" CACHE STRING "" FORCE)
-            
+
             # Fix for Zig + Ninja/Make dependency file issue by suppressing the flags
             set(CMAKE_DEPFILE_FLAGS_C "" CACHE STRING "" FORCE)
             set(CMAKE_DEPFILE_FLAGS_CXX "" CACHE STRING "" FORCE)
@@ -49,23 +54,33 @@ fun Project.registerCapstoneBuildTasks() {
         return
     }
 
-    // Task to build all targets
-    tasks.register("buildCapstoneAll", BuildAllCapstoneTask::class.java).configure {
-        group = "capstone"
-        description = "Build Capstone native library for all enabled targets"
+    val allBuildTaskNames = mutableListOf<String>()
+
+    fun configureBuildCapstoneTask(task: BuildCapstoneTask) {
+        task.rootProjectDir.set(rootProject.layout.projectDirectory)
+        task.buildDirectory.set(layout.buildDirectory)
+        task.hasNinja.set(this@registerCapstoneBuildTasks.toolchains.commandExists("ninja"))
+        task.linuxX64OnMac.set(this@registerCapstoneBuildTasks.toolchains.linuxX64OnMac)
+        task.nativeLinux.set(this@registerCapstoneBuildTasks.toolchains.nativeLinux)
+        task.mingwX64.set(this@registerCapstoneBuildTasks.toolchains.mingwX64)
+        task.mingwX86.set(this@registerCapstoneBuildTasks.toolchains.mingwX86)
+        task.hasEmscripten.set(this@registerCapstoneBuildTasks.toolchains.hasEmscripten)
+        task.emscriptenToolchainFile.set(this@registerCapstoneBuildTasks.toolchains.findEmscriptenToolchain())
+        task.llvmNmPath.set(this@registerCapstoneBuildTasks.toolchains.getLlvmNm())
     }
 
-    // Create individual tasks for each native target
     val nativeTargets = kotlin.targets.filterIsInstance<KotlinNativeTarget>()
     for (target in nativeTargets) {
-        tasks.register("buildCapstone${target.targetName.capitalize()}", BuildCapstoneTask::class.java).configure {
+        val taskName = "buildCapstone${target.targetName.capitalize()}"
+        allBuildTaskNames.add(taskName)
+        tasks.register(taskName, BuildCapstoneTask::class.java).configure {
             group = "capstone"
             description = "Build Capstone native library for ${target.targetName}"
             targetName = target.targetName
+            configureBuildCapstoneTask(this)
         }
     }
 
-    // Create tasks for shared library builds (JVM and Android) and WASM
     val sharedLibraryTargets = listOf(
         // JVM shared libraries
         "macosX64Shared",
@@ -86,14 +101,23 @@ fun Project.registerCapstoneBuildTasks() {
     )
 
     for (targetName in sharedLibraryTargets) {
-        tasks.register("buildCapstone${targetName.capitalize()}", BuildCapstoneTask::class.java).configure {
+        val taskName = "buildCapstone${targetName.capitalize()}"
+        allBuildTaskNames.add(taskName)
+        tasks.register(taskName, external.tasks.BuildCapstoneTask::class.java).configure {
             group = "capstone"
             description = "Build Capstone shared library for $targetName"
             this.targetName = targetName
+            configureBuildCapstoneTask(this)
         }
     }
 
-    // Add dependency so cinterop tasks depend on Capstone build
+    tasks.register("buildCapstoneAll", BuildAllCapstoneTask::class.java).configure {
+        group = "capstone"
+        description = "Build Capstone native library for all enabled targets"
+        // Make it depend on all individual build tasks
+        dependsOn(allBuildTaskNames)
+    }
+
     afterEvaluate {
         tasks.matching { it.name.contains("cinterop", ignoreCase = true) }.configureEach(object : Action<Task> {
             override fun execute(cinteropTask: Task) {
@@ -114,11 +138,9 @@ private fun String.capitalize(): String {
 }
 
 private fun extractTargetFromCinteropTaskName(taskName: String): String? {
-    // Task names are typically like "cinteropCapstoneIosArm64"
     val pattern = """cinterop\w+([A-Z][a-zA-Z0-9]+)""".toRegex()
     val match = pattern.find(taskName)
     return match?.groupValues?.get(1)?.let {
-        // Convert from PascalCase to camelCase
         it.replaceFirstChar { char -> char.lowercase() }
     }
 }
