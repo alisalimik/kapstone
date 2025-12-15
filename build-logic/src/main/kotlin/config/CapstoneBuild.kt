@@ -4,7 +4,7 @@ import org.gradle.api.Action
 import org.gradle.process.ExecSpec
 import org.gradle.api.Project
 import platform.Host
-import platform.Toolchains
+import platform.toolchains
 import java.io.File
 import org.gradle.api.tasks.Input
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
@@ -130,9 +130,9 @@ object CapstoneBuildConfigs {
         )
     }
 
-    private fun linuxConfig(targetName: String, arch: String, triple: String? = null, shared: Boolean = false): CapstoneBuildConfig {
-        val useZig = Toolchains.hasZig
-        val useCrossGCC = triple != null && Toolchains.commandExists("$triple-gcc")
+    private fun linuxConfig(project: Project, targetName: String, arch: String, triple: String? = null, shared: Boolean = false): CapstoneBuildConfig {
+        val useZig = project.toolchains.hasZig.get()
+        val useCrossGCC = triple != null && project.toolchains.commandExists("$triple-gcc").get()
 
         if (useZig) {
             println("Configuration: Enabling Linux target $targetName using Zig")
@@ -169,7 +169,7 @@ object CapstoneBuildConfigs {
                 enabled = true,
                 buildShared = shared
             )
-            Toolchains.nativeLinux -> CapstoneBuildConfig(
+            project.toolchains.nativeLinux.get() -> CapstoneBuildConfig(
                 targetName = targetName,
                 cmakeSystemName = "Linux", // Explicitly set even for native builds
                 enabled = true,
@@ -184,9 +184,9 @@ object CapstoneBuildConfigs {
         }
     }
 
-    private fun mingwConfig(targetName: String, arch: String, triple: String, shared: Boolean = false): CapstoneBuildConfig {
-        val useZig = Toolchains.hasZig
-        val useCrossGCC = Toolchains.commandExists("$triple-gcc")
+    private fun mingwConfig(project: Project, targetName: String, arch: String, triple: String, shared: Boolean = false): CapstoneBuildConfig {
+        val useZig = project.toolchains.hasZig.get()
+        val useCrossGCC = project.toolchains.commandExists("$triple-gcc").get()
 
         return when {
             useZig -> CapstoneBuildConfig(
@@ -210,7 +210,7 @@ object CapstoneBuildConfigs {
                 enabled = true,
                 buildShared = shared
             )
-            Toolchains.mingwX64 && arch == "x86_64" -> CapstoneBuildConfig( // Fallback for native/other
+            project.toolchains.mingwX64.get() && arch == "x86_64" -> CapstoneBuildConfig( // Fallback for native/other
                 targetName = targetName,
                 cmakeSystemName = "Windows",
                 enabled = true,
@@ -237,7 +237,7 @@ object CapstoneBuildConfigs {
         )
     }
 
-    private fun wasmConfig(targetName: String, isWasi: Boolean = false): CapstoneBuildConfig {
+    private fun wasmConfig(project: Project, targetName: String, isWasi: Boolean = false): CapstoneBuildConfig {
         return CapstoneBuildConfig(
             targetName = targetName,
             cmakeToolchainFile = null, // Will be set to Emscripten toolchain
@@ -247,7 +247,7 @@ object CapstoneBuildConfigs {
                     "-DCMAKE_CXX_FLAGS=-D_WASI_EMULATED_MMAN"
                 )
             } else emptyList(),
-            enabled = Toolchains.hasEmscripten
+            enabled = project.toolchains.hasEmscripten.get()
         )
     }
 
@@ -277,11 +277,11 @@ object CapstoneBuildConfigs {
         }
     }
 
-    val configs = mapOf(
+    fun getConfigs(project: Project) = mapOf(
         // macOS
         "macosX64" to macOSConfig("macosX64", "x86_64"),
         "macosArm64" to macOSConfig("macosArm64", "arm64"),
-        
+
         // macOS Shared (for JVM)
         "macosX64Shared" to macOSConfig("macosX64Shared", "x86_64", shared = true),
         "macosArm64Shared" to macOSConfig("macosArm64Shared", "arm64", shared = true),
@@ -304,21 +304,21 @@ object CapstoneBuildConfigs {
         "tvosSimulatorArm64" to tvOSConfig("tvosSimulatorArm64", "arm64", "appletvsimulator"),
 
         // Linux
-        "linuxX64" to linuxConfig("linuxX64", "x86_64"),
-        "linuxArm64" to linuxConfig("linuxArm64", "aarch64", "aarch64-unknown-linux-gnu"),
-        
+        "linuxX64" to linuxConfig(project, "linuxX64", "x86_64"),
+        "linuxArm64" to linuxConfig(project, "linuxArm64", "aarch64", "aarch64-unknown-linux-gnu"),
+
         // Linux Shared (for JVM)
-        "linuxX64Shared" to linuxConfig("linuxX64Shared", "x86_64", shared = true),
-        "linuxX86Shared" to linuxConfig("linuxX86Shared", "x86", shared = true),
-        "linuxArm64Shared" to linuxConfig("linuxArm64Shared", "aarch64", "aarch64-unknown-linux-gnu", shared = true),
-        "linuxArm32Shared" to linuxConfig("linuxArm32Shared", "arm", "arm-unknown-linux-gnueabihf", shared = true),
+        "linuxX64Shared" to linuxConfig(project, "linuxX64Shared", "x86_64", shared = true),
+        "linuxX86Shared" to linuxConfig(project, "linuxX86Shared", "x86", shared = true),
+        "linuxArm64Shared" to linuxConfig(project, "linuxArm64Shared", "aarch64", "aarch64-unknown-linux-gnu", shared = true),
+        "linuxArm32Shared" to linuxConfig(project, "linuxArm32Shared", "arm", "arm-unknown-linux-gnueabihf", shared = true),
 
         // Windows
-        "mingwX64" to mingwConfig("mingwX64", "x86_64", "x86_64-w64-mingw32"),
+        "mingwX64" to mingwConfig(project, "mingwX64", "x86_64", "x86_64-w64-mingw32"),
 
         // Windows Shared (for JVM)
-        "mingwX64Shared" to mingwConfig("mingwX64Shared", "x86_64", "x86_64-w64-mingw32", shared = true),
-        "mingwX86Shared" to mingwConfig("mingwX86Shared", "x86", "i686-w64-mingw32", shared = true),
+        "mingwX64Shared" to mingwConfig(project, "mingwX64Shared", "x86_64", "x86_64-w64-mingw32", shared = true),
+        "mingwX86Shared" to mingwConfig(project, "mingwX86Shared", "x86", "i686-w64-mingw32", shared = true),
 
         // Android Native (static for native targets)
         "androidNativeArm64" to androidNativeConfig("androidNativeArm64", "arm64-v8a"),
@@ -333,8 +333,8 @@ object CapstoneBuildConfigs {
         "androidX86Shared" to androidNativeConfig("androidX86Shared", "x86", buildShared = true),
 
         // WASM
-        "wasmJs" to wasmConfig("wasmJs", isWasi = false),
-        "wasmWasi" to wasmConfig("wasmWasi", isWasi = true)
+        "wasmJs" to wasmConfig(project, "wasmJs", isWasi = false),
+        "wasmWasi" to wasmConfig(project, "wasmWasi", isWasi = true)
     )
 
     // Mapping from target name to Android ABI for shared library output
@@ -406,8 +406,8 @@ fun buildCapstoneWasm(project: Project, targetName: String, config: CapstoneBuil
     project.logger.lifecycle("Building Capstone WASM for $targetName...")
 
     // Find Emscripten toolchain
-    val toolchainFile = Toolchains.findEmscriptenToolchain()
-    if (toolchainFile == null) {
+    val toolchainFile = project.toolchains.findEmscriptenToolchain().get()
+    if (toolchainFile.isEmpty()) {
         project.logger.error("Could not find Emscripten.cmake toolchain file")
         throw createException("Emscripten toolchain not found")
     }
@@ -448,8 +448,8 @@ fun buildCapstoneWasm(project: Project, targetName: String, config: CapstoneBuil
 
     // Step 3: Generate export list from compiled library
     project.logger.lifecycle("Generating exported function list from compiled library...")
-    val llvmNm = Toolchains.getLlvmNm()
-    if (llvmNm == null) {
+    val llvmNm = project.toolchains.getLlvmNm().get()
+    if (llvmNm.isEmpty()) {
         throw createException("llvm-nm not found. Cannot extract symbols.")
     }
 
@@ -572,7 +572,7 @@ fun buildCapstoneWasm(project: Project, targetName: String, config: CapstoneBuil
 
 fun buildCapstoneForTarget(project: Project, targetName: String) {
     // Enable Android configs if NDK is available
-    val enabledConfigs = CapstoneBuildConfigs.enableAndroidConfigs(project, CapstoneBuildConfigs.configs)
+    val enabledConfigs = CapstoneBuildConfigs.enableAndroidConfigs(project, CapstoneBuildConfigs.getConfigs(project))
 
     val config = enabledConfigs[targetName] ?: return
     if (!config.enabled) {
@@ -625,7 +625,7 @@ fun buildCapstoneForTarget(project: Project, targetName: String) {
         // Ensure source target is built (recursively call? or assume existence? Recursion might be safer but circular dep risk)
         // Ideally, we assume the source target is either already built or will be built.
         // For robustness, let's check if source binary exists. If not, trigger build for source.
-        val sourceConfig = CapstoneBuildConfigs.configs[config.reuseOutputFrom]
+        val sourceConfig = CapstoneBuildConfigs.getConfigs(project)[config.reuseOutputFrom]
         if (sourceConfig != null) {
              // We can't easily recurse cleanly without passing state, but we can verify existence.
              // Given the context, we will attempt to find the source library.
@@ -635,12 +635,12 @@ fun buildCapstoneForTarget(project: Project, targetName: String) {
              // We will assume the BuildAll task correctly orders or executes dependencies.
              // BUT, if we are running just for this target, we need the logic.
              // Better: explicitly run the build logic for the source target context if reuse
-             
+
              // Simple approach: Run the build logic for the SOURCE target if we are reusing.
              // Then copy to our output.
              // But wait, if we run logic for source, it will output to source output dir.
              // We just need to copy from source output dir to our output dir.
-             
+
              buildCapstoneForTarget(project, config.reuseOutputFrom)
              // After building source, continue to copy phase using source build dir
         }
@@ -648,9 +648,9 @@ fun buildCapstoneForTarget(project: Project, targetName: String) {
 
     // If NOT reusing (or after building source), check if we need to build
     // Note: If reusing, we already called buildCapstoneForTarget(source), so buildDir (set to source's build dir) is populated.
-    
+
     // However, we skipped the check "if outputDir exists loop" logic for this target.
-    
+
     if (outputDir.exists()) {
        val libFile = if (config.cmakeSystemName == "Windows") {
             if (config.buildShared) File(outputDir, "capstone.dll") else File(outputDir, "libcapstone.a")
@@ -667,7 +667,7 @@ fun buildCapstoneForTarget(project: Project, targetName: String) {
     }
 
     project.logger.lifecycle("Configuring Capstone for $targetName...")
-    
+
     // If reusing, we SKIP the CMake configuration and build for THIS target,
     // beacuse we already built the source target above.
     if (config.reuseOutputFrom == null) {
@@ -676,7 +676,7 @@ fun buildCapstoneForTarget(project: Project, targetName: String) {
         // Set Build Type
         cmakeConfigArgs.add("-DCMAKE_BUILD_TYPE=Release")
 
-        if (Toolchains.commandExists("ninja")) {
+        if (project.toolchains.commandExists("ninja").get()) {
             cmakeConfigArgs.add("-GNinja")
         }
         
@@ -859,17 +859,17 @@ fun buildCapstoneForAllTargets(project: Project, targets: Collection<KotlinNativ
          if (targetNames.contains("macosX64")) extraTargets.add("macosX64Shared")
          if (targetNames.contains("macosArm64")) extraTargets.add("macosArm64Shared")
     }
-    if (Toolchains.linuxX64OnMac || Toolchains.nativeLinux) {
+    if (project.toolchains.linuxX64OnMac.get() || project.toolchains.nativeLinux.get()) {
          if (targetNames.contains("linuxX64")) extraTargets.add("linuxX64")
          if (targetNames.contains("linuxArm64")) extraTargets.add("linuxArm64")
         if (targetNames.contains("linuxX64")) extraTargets.add("linuxX64Shared")
         if (targetNames.contains("linuxArm64")) extraTargets.add("linuxArm64Shared")
         extraTargets.add("linuxX86Shared")
-//        if (Toolchains.linuxArm32) extraTargets.add("linuxArm32Shared")
+//        if (project.toolchains.linuxArm32.get()) extraTargets.add("linuxArm32Shared")
     }
-    if (Toolchains.mingwX64 || Toolchains.mingwX86) {
+    if (project.toolchains.mingwX64.get() || project.toolchains.mingwX86.get()) {
          if (targetNames.contains("mingwX64")) extraTargets.add("mingwX64Shared")
-         if (Toolchains.mingwX86) extraTargets.add("mingwX86Shared")
+         if (project.toolchains.mingwX86.get()) extraTargets.add("mingwX86Shared")
     }
 
     // Android shared libraries (for Android runtime)
@@ -879,7 +879,7 @@ fun buildCapstoneForAllTargets(project: Project, targets: Collection<KotlinNativ
     if (targetNames.contains("androidNativeX86")) extraTargets.add("androidX86Shared")
 
     // WASM targets (if Emscripten is available)
-    if (Toolchains.hasEmscripten) {
+    if (project.toolchains.hasEmscripten.get()) {
         extraTargets.add("wasmJs")
         extraTargets.add("wasmWasi")
     }

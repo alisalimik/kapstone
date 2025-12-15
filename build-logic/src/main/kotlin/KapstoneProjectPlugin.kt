@@ -23,7 +23,7 @@ class KapstoneProjectPlugin : Plugin<Project> {
         plugins.withId("com.android.library") {
             extensions.configure(KotlinMultiplatformExtension::class.java) {
                 configureArgs()
-                configureTargets()
+                configureTargets(project)
                 createCInterop()
                 configureSourceSets()
             }

@@ -1,10 +1,11 @@
 package config
 
+import org.gradle.api.Project
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import platform.Host
-import platform.Toolchains
+import platform.toolchains
 
-fun KotlinMultiplatformExtension.configureTargets() {
+fun KotlinMultiplatformExtension.configureTargets(project: Project) {
     jvm()
     androidTarget()
 
@@ -47,8 +48,8 @@ fun KotlinMultiplatformExtension.configureTargets() {
     linuxX64()
     linuxArm64()
 
-    // Windows
-    if (Toolchains.mingwX64) {
+    // Windows - use configuration cache-compatible toolchain detection
+    if (project.toolchains.mingwX64.get()) {
         mingwX64()
     }
 
