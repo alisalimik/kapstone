@@ -26,15 +26,12 @@ import kotlin.js.JsExport
 @JsExport
 sealed class ArchDetail {
   /** AArch64 (ARM64) specific details */
-
   data class AArch64(val detail: AArch64InstructionDetail) : ArchDetail()
 
   /** X86/X86-64 specific details */
-
   data class X86(val detail: X86InstructionDetail) : ArchDetail()
 
   /** ARM (32-bit) specific details */
-
   data class ARM(val detail: ArmInstructionDetail) : ArchDetail()
 
   /** MIPS specific details */
@@ -66,6 +63,4 @@ sealed class ArchDetail {
 inline fun <reified T : ArchDetail> ArchDetail.asType(): T? = this as? T
 
 /** Generic architecture detail placeholder for architectures without specialized support. */
-@OptIn(ExperimentalJsExport::class)
-@JsExport
-data class GenericDetail(val raw: String = "")
+@OptIn(ExperimentalJsExport::class) @JsExport data class GenericDetail(val raw: String = "")

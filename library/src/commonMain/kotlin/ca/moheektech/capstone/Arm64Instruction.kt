@@ -39,37 +39,37 @@ data class Arm64Instruction(
   val cc: AArch64ConditionCode
     get() = arm64.cc
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other == null || this::class != other::class) return false
+  override fun equals(other: Any?): Boolean {
+    if (this === other) return true
+    if (other == null || this::class != other::class) return false
 
-        other as Arm64Instruction
+    other as Arm64Instruction
 
-        if (id != other.id) return false
-        if (address != other.address) return false
-        if (size != other.size) return false
-        if (!bytes.contentEquals(other.bytes)) return false
-        if (mnemonic != other.mnemonic) return false
-        if (opStr != other.opStr) return false
-        if (detail != other.detail) return false
-        if (arm64 != other.arm64) return false
-        if (operands != other.operands) return false
-        if (cc != other.cc) return false
+    if (id != other.id) return false
+    if (address != other.address) return false
+    if (size != other.size) return false
+    if (!bytes.contentEquals(other.bytes)) return false
+    if (mnemonic != other.mnemonic) return false
+    if (opStr != other.opStr) return false
+    if (detail != other.detail) return false
+    if (arm64 != other.arm64) return false
+    if (operands != other.operands) return false
+    if (cc != other.cc) return false
 
-        return true
-    }
+    return true
+  }
 
-    override fun hashCode(): Int {
-        var result = id
-        result = 31 * result + address.hashCode()
-        result = 31 * result + size
-        result = 31 * result + bytes.contentHashCode()
-        result = 31 * result + mnemonic.hashCode()
-        result = 31 * result + opStr.hashCode()
-        result = 31 * result + detail.hashCode()
-        result = 31 * result + arm64.hashCode()
-        result = 31 * result + operands.hashCode()
-        result = 31 * result + cc.hashCode()
-        return result
-    }
+  override fun hashCode(): Int {
+    var result = id
+    result = 31 * result + address.hashCode()
+    result = 31 * result + size
+    result = 31 * result + bytes.contentHashCode()
+    result = 31 * result + mnemonic.hashCode()
+    result = 31 * result + opStr.hashCode()
+    result = 31 * result + detail.hashCode()
+    result = 31 * result + arm64.hashCode()
+    result = 31 * result + operands.hashCode()
+    result = 31 * result + cc.hashCode()
+    return result
+  }
 }

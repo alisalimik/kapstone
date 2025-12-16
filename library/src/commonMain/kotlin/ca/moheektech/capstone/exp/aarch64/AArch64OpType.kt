@@ -2,7 +2,6 @@ package ca.moheektech.capstone.exp.aarch64
 
 import ca.moheektech.capstone.exp.INumericEnum
 
-
 expect enum class AArch64OpType : INumericEnum {
   INVALID,
   REG, /// < = CS_OP_REG .

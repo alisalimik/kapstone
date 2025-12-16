@@ -43,6 +43,7 @@ enum class CsArch(val value: Int) {
   MAX(23),
   ALL(0xFFFF)
 }
+
 @OptIn(ExperimentalJsExport::class)
 @JsExport
 enum class CsMode(val value: Int) {

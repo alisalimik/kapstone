@@ -39,12 +39,9 @@ fun <T> CapstoneResult<T>.getOrThrow(): T = getOrElse { error ->
   }
 }
 
-
 fun <T> CapstoneResult<T>.success(value: T): CapstoneResult<T> = Result.success(value)
 
-
 fun <T> CapstoneResult<T>.failure(error: CapstoneError): CapstoneResult<T> = Result.failure(error)
-
 
 fun <T> CapstoneResult<T>.failure(
     errorCode: ErrorCode,

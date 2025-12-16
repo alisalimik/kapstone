@@ -16,7 +16,6 @@ sealed class Operand {
   abstract val access: AccessType
 
   /** Register operand */
-
   data class RegisterOperand(
       val register: Register,
       override val access: AccessType = AccessType.INVALID
@@ -25,14 +24,12 @@ sealed class Operand {
   }
 
   /** Immediate (constant) operand */
-
   data class ImmediateOperand(val value: Long, override val access: AccessType = AccessType.READ) :
       Operand() {
     override fun toString(): String = "0x${value.toString(16)}"
   }
 
   /** Floating-point operand */
-
   data class FloatingPointOperand(
       val value: Double,
       override val access: AccessType = AccessType.READ
@@ -41,7 +38,6 @@ sealed class Operand {
   }
 
   /** Memory operand */
-
   data class MemoryOperand(
       val base: Register? = null,
       val index: Register? = null,

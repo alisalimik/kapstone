@@ -28,9 +28,7 @@ data class InstructionDetail(
   /** Check if this instruction belongs to a specific group */
   fun isInGroup(group: InstructionGroup): Boolean = groups.contains(group)
 
-
   fun readsRegister(regId: Int): Boolean = regsRead.any { it.id == regId }
-
 
   fun writesRegister(regId: Int): Boolean = regsWritten.any { it.id == regId }
 

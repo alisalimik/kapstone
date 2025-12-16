@@ -2,7 +2,6 @@ package ca.moheektech.capstone.exp.arm
 
 import ca.moheektech.capstone.exp.INumericEnum
 
-
 expect enum class ArmVectorDataType : INumericEnum {
   INVALID,
   I8,

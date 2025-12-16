@@ -211,8 +211,7 @@ enum class Mode(val value: Int) {
   TRICORE_180(1 shl 8);
 
   /** Combine this mode with another using OR */
-  @JsName("orMode")
-  infix fun or(other: Mode): Int = this.value or other.value
+  @JsName("orMode") infix fun or(other: Mode): Int = this.value or other.value
 
   /** Combine this mode with an integer value using OR */
   infix fun or(other: Int): Int = this.value or other
