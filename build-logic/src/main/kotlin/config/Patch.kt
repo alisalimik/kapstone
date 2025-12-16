@@ -4,6 +4,7 @@ import org.gradle.api.Project
 import org.gradle.api.tasks.testing.AbstractTestTask
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.gradle.kotlin.dsl.withType
+import org.jetbrains.kotlin.gradle.dsl.KotlinJsCompile
 import org.jetbrains.kotlin.gradle.tasks.KotlinNativeCompile
 
 fun Project.patchWASITestRunner() {
@@ -53,6 +54,14 @@ fun Project.patchTestTask() {
             events("passed", "skipped", "failed")
             showStandardStreams = true
             exceptionFormat = TestExceptionFormat.FULL
+        }
+    }
+}
+
+fun Project.patchEs2015() {
+    tasks.withType<KotlinJsCompile>().configureEach {
+        compilerOptions {
+            target.set("es2015")
         }
     }
 }

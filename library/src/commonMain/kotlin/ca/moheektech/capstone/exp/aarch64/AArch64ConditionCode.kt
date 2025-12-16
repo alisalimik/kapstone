@@ -2,7 +2,7 @@ package ca.moheektech.capstone.exp.aarch64
 
 import ca.moheektech.capstone.exp.INumericEnum
 
-/** Capstone AArch64 condition code. */
+
 expect enum class AArch64ConditionCode : INumericEnum {
   // Meaning  Meaning
   EQ, // Equal                      Equal

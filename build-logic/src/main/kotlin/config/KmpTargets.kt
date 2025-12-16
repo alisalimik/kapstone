@@ -18,7 +18,10 @@ fun KotlinMultiplatformExtension.configureTargets() {
             freeCompilerArgs.add("-Xes-long-as-bigint")
             freeCompilerArgs.add("-XXLanguage:+JsAllowLongInExportedDeclarations")
         }
+        useEsModules()
+        generateTypeScriptDefinitions()
         binaries.library()
+        configurePublishing()
     }
 
     wasmJs {

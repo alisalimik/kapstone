@@ -2,6 +2,8 @@ package ca.moheektech.capstone.error
 
 import ca.moheektech.capstone.enums.Architecture
 import ca.moheektech.capstone.enums.Mode
+import kotlin.js.ExperimentalJsExport
+import kotlin.js.JsExport
 
 /**
  * Result type for Capstone operations.
@@ -28,6 +30,8 @@ typealias CapstoneResult<T> = Result<T>
  * val instructions = engine.disassemble(code).getOrThrow()
  * ```
  */
+@OptIn(ExperimentalJsExport::class)
+@JsExport
 fun <T> CapstoneResult<T>.getOrThrow(): T = getOrElse { error ->
   throw when (error) {
     is CapstoneError -> error
@@ -35,13 +39,13 @@ fun <T> CapstoneResult<T>.getOrThrow(): T = getOrElse { error ->
   }
 }
 
-/** Create a successful CapstoneResult */
+
 fun <T> CapstoneResult<T>.success(value: T): CapstoneResult<T> = Result.success(value)
 
-/** Create a failed CapstoneResult with CapstoneError */
+
 fun <T> CapstoneResult<T>.failure(error: CapstoneError): CapstoneResult<T> = Result.failure(error)
 
-/** Create a failed CapstoneResult from ErrorCode */
+
 fun <T> CapstoneResult<T>.failure(
     errorCode: ErrorCode,
     arch: Architecture = Architecture.ARM,

@@ -2,6 +2,8 @@ package ca.moheektech.capstone.arch
 
 import ca.moheektech.capstone.enums.AccessType
 import ca.moheektech.capstone.model.Register
+import kotlin.js.ExperimentalJsExport
+import kotlin.js.JsExport
 
 /**
  * X86/X86-64 instruction details.
@@ -25,6 +27,8 @@ import ca.moheektech.capstone.model.Register
  * @property eflagsTested EFLAGS bits tested by instruction
  * @property fpuFlags FPU flags modified by instruction
  */
+@OptIn(ExperimentalJsExport::class)
+@JsExport
 data class X86InstructionDetail(
     val prefix: List<X86Prefix> = emptyList(),
     val opcode: ByteArray = byteArrayOf(),
@@ -75,6 +79,8 @@ data class X86InstructionDetail(
 }
 
 /** X86 instruction operand. */
+@OptIn(ExperimentalJsExport::class)
+@JsExport
 data class X86Operand(
     val type: X86OpType,
     val access: AccessType = AccessType.INVALID,
@@ -97,6 +103,8 @@ data class X86Operand(
 )
 
 /** X86 memory operand. */
+@OptIn(ExperimentalJsExport::class)
+@JsExport
 data class X86MemoryOperand(
     val segment: Register? = null,
     val base: Register? = null,
@@ -106,6 +114,8 @@ data class X86MemoryOperand(
 )
 
 /** X86 operand types. */
+@OptIn(ExperimentalJsExport::class)
+@JsExport
 enum class X86OpType(val value: Int) {
   INVALID(0),
   REG(1), // Register operand
@@ -118,6 +128,8 @@ enum class X86OpType(val value: Int) {
 }
 
 /** X86 instruction prefixes. */
+@OptIn(ExperimentalJsExport::class)
+@JsExport
 enum class X86Prefix(val value: Int) {
   INVALID(0),
   LOCK(0xF0), // LOCK prefix
@@ -138,6 +150,8 @@ enum class X86Prefix(val value: Int) {
 }
 
 /** X86 EFLAGS bits. */
+@OptIn(ExperimentalJsExport::class)
+@JsExport
 enum class X86EFlags(val bit: Int) {
   CF(0), // Carry flag
   PF(2), // Parity flag
@@ -164,6 +178,8 @@ enum class X86EFlags(val bit: Int) {
 }
 
 /** X86 AVX condition codes. */
+@OptIn(ExperimentalJsExport::class)
+@JsExport
 enum class X86AVXCC(val value: Int) {
   INVALID(0),
   EQ(0),
@@ -205,6 +221,8 @@ enum class X86AVXCC(val value: Int) {
 }
 
 /** X86 SSE condition codes. */
+@OptIn(ExperimentalJsExport::class)
+@JsExport
 enum class X86SSECC(val value: Int) {
   INVALID(-1),
   EQ(0),
@@ -222,6 +240,8 @@ enum class X86SSECC(val value: Int) {
 }
 
 /** X86 AVX rounding modes. */
+@OptIn(ExperimentalJsExport::class)
+@JsExport
 enum class X86AVXRM(val value: Int) {
   INVALID(0),
   RN(1), // Round to nearest
@@ -235,6 +255,8 @@ enum class X86AVXRM(val value: Int) {
 }
 
 /** X86 AVX broadcast types. */
+@OptIn(ExperimentalJsExport::class)
+@JsExport
 enum class X86AVXBroadcast(val value: Int) {
   INVALID(0),
   B1TO2(1),

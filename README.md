@@ -14,9 +14,54 @@ Please be aware that the APIs are currently evolving and are subject to change w
 -   **Idiomatic Kotlin API**: Enhances the raw C API with Kotlin's type safety, `Result` types, and resource management (`use` blocks).
 -   **Comprehensive Architecture Support**: Supports all major architectures provided by Capstone (ARM, ARM64, X86, MIPS, PowerPC, etc.).
 
-## Installation & Building
+## Installation
 
-Since this project is currently in beta, you may need to build it from source to get the latest changes or if artifacts are not yet published to a public repository.
+### npm / JavaScript / TypeScript
+
+For JavaScript and TypeScript projects, install via npm:
+
+```bash
+npm install @kapstone/kapstone-kt
+```
+
+Or from GitHub Packages:
+
+```bash
+npm install @kapstone/kapstone-kt --registry=https://npm.pkg.github.com
+```
+
+```typescript
+import * as Capstone from '@kapstone/kapstone-kt';
+
+// Use the library
+const cs = Capstone.cs_open(/* ... */);
+```
+
+### Gradle (Kotlin/JVM/Android)
+
+Add to your `build.gradle.kts`:
+
+```kotlin
+dependencies {
+    implementation("ca.moheektech.kapstone:kapstone:1.0.0-alpha01")
+}
+```
+
+### Maven (Java)
+
+Add to your `pom.xml`:
+
+```xml
+<dependency>
+    <groupId>ca.moheektech.kapstone</groupId>
+    <artifactId>kapstone</artifactId>
+    <version>1.0.0-alpha01</version>
+</dependency>
+```
+
+## Building from Source
+
+If you want to build the library from source or contribute to development:
 
 ### Prerequisites
 
@@ -25,7 +70,7 @@ Since this project is currently in beta, you may need to build it from source to
 -   Android NDK (optional, for Android targets).
 -   Emscripten (optional, for Web/Wasm targets).
 
-### Building form Source
+### Build Commands
 
 To build the library and all its underlying native dependencies, run:
 
@@ -98,6 +143,20 @@ When you build your application for the web, the standard Kotlin build tasks mig
 2.  **Wasm Implementation**: The compiled WebAssembly binary (`capstone.wasm`).
 
 These files are typically generated in the build output of the `wasmJs` or `wasmWasi` targets (e.g., inside `library/build/` or resources folders). Without these files accessible at runtime, the library will fail to initialize.
+
+## Publishing
+
+Kapstone uses **npm Trusted Publishing** with OIDC for secure, token-free publishing.
+
+**For Maintainers**:
+- **Quick Start**: [QUICK_PUBLISH.md](QUICK_PUBLISH.md) - TL;DR publishing guide
+- **Complete Guide**: [NPM_TRUSTED_PUBLISHING.md](NPM_TRUSTED_PUBLISHING.md) - Detailed setup and troubleshooting
+- **Reference**: [PUBLISHING.md](PUBLISHING.md) - Publishing documentation
+
+**Key Features**:
+- 🔒 No npm tokens stored in GitHub
+- ✅ Cryptographic provenance on every publish
+- 🏷️ Automatic dist-tag management (alpha/beta/rc/latest)
 
 ---
 

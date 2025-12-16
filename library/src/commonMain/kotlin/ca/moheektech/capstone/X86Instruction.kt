@@ -6,8 +6,12 @@ import ca.moheektech.capstone.arch.X86Operand
 import ca.moheektech.capstone.enums.InstructionGroup
 import ca.moheektech.capstone.exp.x86.*
 import ca.moheektech.capstone.model.InstructionDetail
+import kotlin.js.ExperimentalJsExport
+import kotlin.js.JsExport
 
 /** X86 architecture-specific instruction. */
+@OptIn(ExperimentalJsExport::class)
+@JsExport
 data class X86Instruction(
     override val id: Int,
     override val address: Long,
@@ -34,4 +38,38 @@ data class X86Instruction(
 
   val imm: Long?
     get() = operands.firstOrNull { it.type == ca.moheektech.capstone.arch.X86OpType.IMM }?.imm
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other == null || this::class != other::class) return false
+
+        other as X86Instruction
+
+        if (id != other.id) return false
+        if (address != other.address) return false
+        if (size != other.size) return false
+        if (!bytes.contentEquals(other.bytes)) return false
+        if (mnemonic != other.mnemonic) return false
+        if (opStr != other.opStr) return false
+        if (detail != other.detail) return false
+        if (x86 != other.x86) return false
+        if (imm != other.imm) return false
+        if (operands != other.operands) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = id
+        result = 31 * result + address.hashCode()
+        result = 31 * result + size
+        result = 31 * result + bytes.contentHashCode()
+        result = 31 * result + mnemonic.hashCode()
+        result = 31 * result + opStr.hashCode()
+        result = 31 * result + detail.hashCode()
+        result = 31 * result + x86.hashCode()
+        result = 31 * result + (imm?.hashCode() ?: 0)
+        result = 31 * result + operands.hashCode()
+        return result
+    }
 }

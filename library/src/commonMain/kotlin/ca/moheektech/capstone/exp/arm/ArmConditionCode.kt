@@ -1,8 +1,10 @@
 package ca.moheektech.capstone.exp.arm
 
 import ca.moheektech.capstone.exp.INumericEnum
+import kotlin.js.ExperimentalJsExport
+import kotlin.js.JsExport
 
-/** Capstone ARM condition code. */
+
 expect enum class ArmConditionCode : INumericEnum {
   EQ,
   NE,

@@ -6,6 +6,8 @@ import ca.moheektech.capstone.enums.Mode
 import ca.moheektech.capstone.enums.Syntax
 import ca.moheektech.capstone.error.getOrThrow
 import ca.moheektech.capstone.internal.platform.createPlatformBinding
+import kotlin.js.ExperimentalJsExport
+import kotlin.js.JsExport
 
 /**
  * Builder for configuring and creating a Capstone disassembly engine.
@@ -33,6 +35,8 @@ import ca.moheektech.capstone.internal.platform.createPlatformBinding
  * @property architecture Target architecture to disassemble
  * @property mode Disassembly mode flags
  */
+@OptIn(ExperimentalJsExport::class)
+@JsExport
 class CapstoneBuilder(private val architecture: Architecture, private val mode: Mode) {
   private val options = mutableListOf<CapstoneOption>()
 

@@ -13,6 +13,9 @@ import ca.moheektech.capstone.error.ErrorCode
 import ca.moheektech.capstone.internal.platform.CapstoneBinding
 import ca.moheektech.capstone.internal.platform.getPlatformVersion
 import ca.moheektech.capstone.internal.platform.isPlatformSupported
+import kotlin.js.ExperimentalJsExport
+import kotlin.js.JsExport
+import kotlin.js.JsName
 
 /**
  * Main Capstone disassembly engine.
@@ -37,6 +40,8 @@ import ca.moheektech.capstone.internal.platform.isPlatformSupported
  * @property architecture Target architecture being disassembled
  * @property mode Disassembly mode flags
  */
+@OptIn(ExperimentalJsExport::class)
+@JsExport
 class CapstoneEngine
 internal constructor(
     val architecture: Architecture,
@@ -305,6 +310,7 @@ internal constructor(
      * }
      * ```
      */
+    @JsName("buildWithEnum")
     fun build(
         architecture: Architecture,
         mode: Mode,

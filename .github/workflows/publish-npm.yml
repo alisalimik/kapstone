@@ -1,0 +1,196 @@
+name: Publish to npm
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Perform a dry run (no actual publishing)'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  publish-npm-trusted:
+    name: Publish to npm with Provenance
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: 17
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v5
+        with:
+          cache-disabled: true
+
+      - name: Setup Node.js for npm Trusted Publishing
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Build Kotlin/JS library
+        run: ./gradlew :library:jsProductionLibraryCompileSync --no-daemon --stacktrace
+
+      - name: Verify build artifacts
+        run: |
+          echo "=== Checking for JS build artifacts ==="
+          ls -la library/build/dist/js/productionLibrary/
+
+          echo ""
+          echo "=== Package.json contents ==="
+          cat library/build/dist/js/productionLibrary/package.json
+
+          echo ""
+          echo "=== Verifying TypeScript definitions ==="
+          ls -la library/build/dist/js/productionLibrary/*.d.mts || echo "No .d.mts files found"
+
+          echo ""
+          echo "=== Verifying ES modules ==="
+          ls -la library/build/dist/js/productionLibrary/*.mjs || echo "No .mjs files found"
+
+      - name: Publish to npm with Provenance (Trusted Publishing)
+        if: ${{ !inputs.dry_run }}
+        working-directory: library/build/dist/js/productionLibrary
+        run: |
+          echo "========================================="
+          echo "Publishing to npm using Trusted Publishing (OIDC)"
+          echo "Reference: https://docs.npmjs.com/trusted-publishers"
+          echo "========================================="
+          echo ""
+
+          PACKAGE_NAME=$(node -p "require('./package.json').name")
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+
+          echo "Package: $PACKAGE_NAME"
+          echo "Version: $PACKAGE_VERSION"
+          echo ""
+
+          # Determine npm dist-tag based on version
+          # - alpha versions -> tag: alpha
+          # - beta versions -> tag: beta
+          # - rc versions -> tag: rc
+          # - stable versions -> tag: latest (default)
+          if [[ "$PACKAGE_VERSION" == *"alpha"* ]]; then
+            NPM_TAG="alpha"
+            echo "📦 Detected ALPHA version - publishing with --tag alpha"
+          elif [[ "$PACKAGE_VERSION" == *"beta"* ]]; then
+            NPM_TAG="beta"
+            echo "📦 Detected BETA version - publishing with --tag beta"
+          elif [[ "$PACKAGE_VERSION" == *"rc"* ]]; then
+            NPM_TAG="rc"
+            echo "📦 Detected RC version - publishing with --tag rc"
+          else
+            NPM_TAG="latest"
+            echo "📦 Detected STABLE version - publishing with --tag latest"
+          fi
+
+          echo ""
+          echo "Publishing: $PACKAGE_NAME@$PACKAGE_VERSION"
+          echo "Dist-tag: $NPM_TAG"
+          echo ""
+
+          # Publish with provenance using OIDC
+          # The --provenance flag triggers npm to use GitHub's OIDC token
+          # No NPM_TOKEN needed - authentication is handled via OIDC!
+          npm publish --provenance --access public --tag "$NPM_TAG"
+
+          echo ""
+          echo "✅ Published successfully with cryptographic attestation!"
+          echo ""
+          echo "Installation commands:"
+          if [ "$NPM_TAG" != "latest" ]; then
+            echo "  npm install $PACKAGE_NAME@$NPM_TAG    (installs latest $NPM_TAG)"
+            echo "  npm install $PACKAGE_NAME@$PACKAGE_VERSION    (installs specific version)"
+          else
+            echo "  npm install $PACKAGE_NAME    (installs as default)"
+            echo "  npm install $PACKAGE_NAME@$PACKAGE_VERSION    (installs specific version)"
+          fi
+
+      - name: Dry run - Show what would be published
+        if: ${{ inputs.dry_run }}
+        working-directory: library/build/dist/js/productionLibrary
+        run: |
+          echo "=== DRY RUN MODE ==="
+          echo "Would publish the following package:"
+          npm pack --dry-run
+          echo ""
+          echo "Package contents:"
+          npm publish --dry-run
+
+      - name: Create release artifact
+        if: github.event_name == 'release'
+        run: |
+          cd library/build/dist/js/productionLibrary
+          npm pack
+
+      - name: Upload package tarball as release artifact
+        if: github.event_name == 'release'
+        uses: actions/upload-artifact@v6
+        with:
+          name: npm-package
+          path: library/build/dist/js/productionLibrary/*.tgz
+          retention-days: 30
+
+      - name: Post-publish verification
+        if: ${{ !inputs.dry_run }}
+        run: |
+          # Extract package name and version from package.json
+          PACKAGE_NAME=$(node -p "require('./library/build/dist/js/productionLibrary/package.json').name")
+          PACKAGE_VERSION=$(node -p "require('./library/build/dist/js/productionLibrary/package.json').version")
+
+          # Determine tag
+          if [[ "$PACKAGE_VERSION" == *"alpha"* ]]; then
+            NPM_TAG="alpha"
+          elif [[ "$PACKAGE_VERSION" == *"beta"* ]]; then
+            NPM_TAG="beta"
+          elif [[ "$PACKAGE_VERSION" == *"rc"* ]]; then
+            NPM_TAG="rc"
+          else
+            NPM_TAG="latest"
+          fi
+
+          echo "========================================="
+          echo "📦 Published Package Information"
+          echo "========================================="
+          echo "Package: $PACKAGE_NAME"
+          echo "Version: $PACKAGE_VERSION"
+          echo "Dist-tag: $NPM_TAG"
+          echo ""
+          echo "View on npm: https://www.npmjs.com/package/$PACKAGE_NAME/v/$PACKAGE_VERSION"
+          echo ""
+
+          # Wait a few seconds for npm registry to update
+          echo "Waiting for npm registry to update..."
+          sleep 10
+
+          # Verify the package is available
+          echo "Verifying package availability..."
+          if npm view "$PACKAGE_NAME@$PACKAGE_VERSION" version 2>/dev/null; then
+            echo "✅ Package is available on npm registry"
+            echo ""
+            echo "Installation commands:"
+            if [ "$NPM_TAG" != "latest" ]; then
+              echo "  npm install $PACKAGE_NAME@$NPM_TAG"
+              echo "  npm install $PACKAGE_NAME@$PACKAGE_VERSION"
+            else
+              echo "  npm install $PACKAGE_NAME"
+            fi
+            echo ""
+            echo "View dist-tags:"
+            npm view "$PACKAGE_NAME" dist-tags
+          else
+            echo "⚠️  Package not yet visible on registry (may take a few minutes)"
+          fi

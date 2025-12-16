@@ -2,7 +2,11 @@ package ca.moheektech.capstone.exp.aarch64
 
 import ca.moheektech.capstone.exp.INumericEnum
 import ca.moheektech.capstone.internal.*
+import kotlin.js.ExperimentalJsExport
+import kotlin.js.JsExport
 
+@OptIn(ExperimentalJsExport::class)
+@JsExport
 actual enum class AArch64ConditionCode(override val value: Int) : INumericEnum {
   // Meaning  Meaning
   EQ(AArch64CC_EQ), // Equal                      Equal

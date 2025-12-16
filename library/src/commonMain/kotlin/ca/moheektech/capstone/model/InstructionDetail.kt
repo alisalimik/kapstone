@@ -2,6 +2,8 @@ package ca.moheektech.capstone.model
 
 import ca.moheektech.capstone.arch.ArchDetail
 import ca.moheektech.capstone.enums.InstructionGroup
+import kotlin.js.ExperimentalJsExport
+import kotlin.js.JsExport
 
 /**
  * Detailed instruction information.
@@ -14,6 +16,8 @@ import ca.moheektech.capstone.enums.InstructionGroup
  * @property writeback True if instruction has writeback operands
  * @property archDetail Architecture-specific details (type-safe via sealed class)
  */
+@OptIn(ExperimentalJsExport::class)
+@JsExport
 data class InstructionDetail(
     val regsRead: List<Register> = emptyList(),
     val regsWritten: List<Register> = emptyList(),
@@ -24,10 +28,10 @@ data class InstructionDetail(
   /** Check if this instruction belongs to a specific group */
   fun isInGroup(group: InstructionGroup): Boolean = groups.contains(group)
 
-  /** Check if instruction reads a specific register */
+
   fun readsRegister(regId: Int): Boolean = regsRead.any { it.id == regId }
 
-  /** Check if instruction writes a specific register */
+
   fun writesRegister(regId: Int): Boolean = regsWritten.any { it.id == regId }
 
   /** Get all registers accessed (read or written) */

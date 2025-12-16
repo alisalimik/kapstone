@@ -1,8 +1,10 @@
 package ca.moheektech.capstone.exp.aarch64
 
 import ca.moheektech.capstone.exp.INumericEnum
+import kotlin.js.ExperimentalJsExport
+import kotlin.js.JsExport
 
-/** Capstone AArch64 extender. */
+
 expect enum class AArch64Extender : INumericEnum {
   INVALID,
   UXTB,

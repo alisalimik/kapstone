@@ -2,7 +2,11 @@ package ca.moheektech.capstone.exp.arm
 
 import ca.moheektech.capstone.exp.INumericEnum
 import ca.moheektech.capstone.internal.*
+import kotlin.js.ExperimentalJsExport
+import kotlin.js.JsExport
 
+@OptIn(ExperimentalJsExport::class)
+@JsExport
 actual enum class ArmConditionCode(override val value: Int) : INumericEnum {
   EQ(ARMCC_EQ),
   NE(ARMCC_NE),

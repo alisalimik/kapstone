@@ -1,11 +1,13 @@
 import config.configureArgs
 import config.configureCompatibility
 import config.configureDetekt
+import config.configureProjectMeta
 import config.configurePublishing
 import config.configureSourceSets
 import config.configureTargets
 import config.createCInterop
 import config.patchCinteropConfigCache
+import config.patchEs2015
 import config.patchTestTask
 import config.patchWASITestRunner
 import external.registerCapstoneBuildTasks
@@ -42,9 +44,11 @@ class KapstoneProjectPlugin : Plugin<Project> {
                 configureCompatibility()
             }
 
+            configureProjectMeta()
             patchCinteropConfigCache()
             patchTestTask()
             patchWASITestRunner()
+            patchEs2015()
             configurePublishing()
 
             registerCapstoneBuildTasks()

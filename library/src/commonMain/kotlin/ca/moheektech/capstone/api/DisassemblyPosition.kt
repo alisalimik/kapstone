@@ -1,5 +1,8 @@
 package ca.moheektech.capstone.api
 
+import kotlin.js.ExperimentalJsExport
+import kotlin.js.JsExport
+
 /**
  * Position tracker for iterative disassembly.
  *
@@ -8,6 +11,8 @@ package ca.moheektech.capstone.api
  * @property offset Current byte offset in the code buffer
  * @property address Current virtual address
  */
+@OptIn(ExperimentalJsExport::class)
+@JsExport
 data class DisassemblyPosition(var offset: Int = 0, var address: Long = 0) {
   /**
    * Advance position by the given number of bytes.

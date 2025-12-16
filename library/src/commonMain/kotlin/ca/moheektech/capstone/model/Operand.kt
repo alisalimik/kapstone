@@ -1,17 +1,22 @@
 package ca.moheektech.capstone.model
 
 import ca.moheektech.capstone.enums.AccessType
+import kotlin.js.ExperimentalJsExport
+import kotlin.js.JsExport
 
 /**
  * Base sealed class for instruction operands.
  *
  * Different operand types are represented by subclasses.
  */
+@OptIn(ExperimentalJsExport::class)
+@JsExport
 sealed class Operand {
   /** Access type for this operand (read, write, or both) */
   abstract val access: AccessType
 
   /** Register operand */
+
   data class RegisterOperand(
       val register: Register,
       override val access: AccessType = AccessType.INVALID
@@ -20,12 +25,14 @@ sealed class Operand {
   }
 
   /** Immediate (constant) operand */
+
   data class ImmediateOperand(val value: Long, override val access: AccessType = AccessType.READ) :
       Operand() {
     override fun toString(): String = "0x${value.toString(16)}"
   }
 
   /** Floating-point operand */
+
   data class FloatingPointOperand(
       val value: Double,
       override val access: AccessType = AccessType.READ
@@ -34,6 +41,7 @@ sealed class Operand {
   }
 
   /** Memory operand */
+
   data class MemoryOperand(
       val base: Register? = null,
       val index: Register? = null,

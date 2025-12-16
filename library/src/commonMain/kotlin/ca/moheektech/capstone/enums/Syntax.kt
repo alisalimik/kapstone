@@ -1,10 +1,15 @@
 package ca.moheektech.capstone.enums
 
+import kotlin.js.ExperimentalJsExport
+import kotlin.js.JsExport
+
 /**
  * Assembly syntax styles.
  *
  * Used with CS_OPT_SYNTAX option to configure output syntax.
  */
+@OptIn(ExperimentalJsExport::class)
+@JsExport
 enum class Syntax(val value: Int) {
   /** Default syntax (architecture-dependent) */
   DEFAULT(0),

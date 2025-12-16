@@ -1,5 +1,9 @@
 package ca.moheektech.capstone.enums
 
+import kotlin.js.ExperimentalJsExport
+import kotlin.js.JsExport
+import kotlin.js.JsName
+
 /**
  * Capstone disassembly mode flags.
  *
@@ -14,6 +18,8 @@ package ca.moheektech.capstone.enums
  * val mode = Mode.THUMB or Mode.V8
  * ```
  */
+@OptIn(ExperimentalJsExport::class)
+@JsExport
 enum class Mode(val value: Int) {
   /** Little-endian mode (default) */
   LITTLE_ENDIAN(0),
@@ -205,6 +211,7 @@ enum class Mode(val value: Int) {
   TRICORE_180(1 shl 8);
 
   /** Combine this mode with another using OR */
+  @JsName("orMode")
   infix fun or(other: Mode): Int = this.value or other.value
 
   /** Combine this mode with an integer value using OR */

@@ -1,6 +1,11 @@
 package ca.moheektech.capstone.error
 
+import kotlin.js.ExperimentalJsExport
+import kotlin.js.JsExport
+
 /** Capstone error codes matching cs_err enum from capstone.h */
+@OptIn(ExperimentalJsExport::class)
+@JsExport
 enum class ErrorCode(val value: Int) {
   /** No error - operation was successful */
   OK(0),

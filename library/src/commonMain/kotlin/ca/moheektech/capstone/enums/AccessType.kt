@@ -1,10 +1,15 @@
 package ca.moheektech.capstone.enums
 
+import kotlin.js.ExperimentalJsExport
+import kotlin.js.JsExport
+
 /**
  * Operand access type.
  *
  * Indicates how an operand is accessed by an instruction.
  */
+@OptIn(ExperimentalJsExport::class)
+@JsExport
 enum class AccessType(val value: Int) {
   /** Invalid/unknown access */
   INVALID(0),

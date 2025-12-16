@@ -1,11 +1,16 @@
 package ca.moheektech.capstone.enums
 
+import kotlin.js.ExperimentalJsExport
+import kotlin.js.JsExport
+
 /**
  * Common instruction groups.
  *
  * Groups classify instructions by their behavior (jump, call, return, etc.) Maps to cs_group_type
  * enum from capstone.h
  */
+@OptIn(ExperimentalJsExport::class)
+@JsExport
 enum class InstructionGroup(val value: Int) {
   /** Invalid/unknown group */
   INVALID(0),
