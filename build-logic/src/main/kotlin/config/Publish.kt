@@ -11,6 +11,7 @@ import org.gradle.kotlin.dsl.configure
 import org.gradle.kotlin.dsl.get
 import org.gradle.kotlin.dsl.register
 import org.gradle.kotlin.dsl.withType
+import org.jetbrains.kotlin.gradle.plugin.mpp.Framework
 import org.jetbrains.kotlin.gradle.targets.js.dsl.KotlinJsTargetDsl
 import org.jetbrains.kotlin.gradle.targets.js.npm.PackageJson
 import java.io.File
@@ -241,4 +242,35 @@ fun KotlinJsTargetDsl.configurePublishing() {
             "url" to publishProperties["POM_DEVELOPER_URL"]
         ))
     }
+}
+
+fun Framework.configurePublishing() {
+    val pubVersion = publishProperties["VERSION"].toString()
+    binaryOption("bundleId", publishProperties["GROUP"].toString())
+    binaryOption("bundleVersion", generateVersionCode(pubVersion).toString())
+    binaryOption("bundleShortVersionString", pubVersion)
+}
+
+private fun generateVersionCode(versionName: String): Int {
+    val regex = Regex("""^(\d+)\.(\d+)\.(\d+)(?:-(alpha|beta|rc)?(\d+)?)?$""")
+    val match = regex.matchEntire(versionName)
+        ?: throw IllegalArgumentException("Invalid version format: $versionName")
+
+    val major = match.groupValues[1].toInt()
+    val minor = match.groupValues[2].toInt()
+    val patch = match.groupValues[3].toInt()
+    val type = match.groupValues[4]
+    val suffixNum = match.groupValues[5].toIntOrNull() ?: 0
+
+    val base = major * 10_000 + minor * 100 + patch
+
+    val statusScore = when (type) {
+        "alpha" -> 1
+        "beta"  -> 2
+        "rc"    -> 3
+        ""      -> 9
+        else    -> 0
+    }
+
+    return base * 100 + statusScore * 10 + suffixNum
 }

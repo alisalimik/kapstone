@@ -13,7 +13,6 @@ import config.patchWASITestRunner
 import external.registerCapstoneBuildTasks
 import io.gitlab.arturbosch.detekt.extensions.DetektExtension
 import kotlinx.validation.ApiValidationExtension
-import kotlinx.validation.BinaryCompatibilityValidatorPlugin
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension

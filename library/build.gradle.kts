@@ -1,6 +1,7 @@
 plugins { alias(libs.plugins.kapstone.project) }
 
 kotlin {
+  swiftExport {}
   sourceSets {
     commonMain.dependencies {
       implementation(libs.kotlin.stdlib)

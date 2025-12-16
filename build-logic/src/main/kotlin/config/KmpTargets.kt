@@ -15,6 +15,7 @@ fun KotlinMultiplatformExtension.configureTargets() {
         nodejs()
         browser()
         compilerOptions {
+            freeCompilerArgs.add("-Xenable-suspend-function-exporting")
             freeCompilerArgs.add("-Xes-long-as-bigint")
             freeCompilerArgs.add("-XXLanguage:+JsAllowLongInExportedDeclarations")
         }
@@ -28,6 +29,9 @@ fun KotlinMultiplatformExtension.configureTargets() {
         outputModuleName.set("capstone-kt")
         nodejs()
         browser()
+        compilerOptions {
+            freeCompilerArgs.add("-Xwasm-use-new-exception-proposal")
+        }
         binaries.library()
     }
 

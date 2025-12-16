@@ -1,0 +1,207 @@
+name: Publish XCFramework
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag version (e.g., v1.0.0-alpha01)'
+        required: true
+        type: string
+
+permissions:
+  contents: write  # Required for creating releases and pushing commits
+
+jobs:
+  publish-xcframework:
+    name: Build and Publish XCFramework
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v6
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v5
+        with:
+          cache-read-only: false
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="${GITHUB_REF#refs/tags/}"
+          fi
+          # Remove 'v' prefix if present
+          VERSION="${TAG#v}"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Publishing version: $VERSION (tag: $TAG)"
+
+      - name: Build XCFramework
+        run: |
+          echo "Building XCFramework for all Apple platforms..."
+          ./gradlew :library:assembleKapstoneKitReleaseXCFramework --no-daemon --stacktrace
+
+      - name: Verify XCFramework
+        run: |
+          XCFRAMEWORK_PATH="library/build/xcframeworks/release/KapstoneKit.xcframework"
+          if [ ! -d "$XCFRAMEWORK_PATH" ]; then
+            echo "Error: XCFramework not found at $XCFRAMEWORK_PATH"
+            exit 1
+          fi
+          echo "XCFramework built successfully"
+          echo "Contents:"
+          ls -la "$XCFRAMEWORK_PATH"
+
+      - name: Create XCFramework ZIP
+        id: zip
+        run: |
+          XCFRAMEWORK_PATH="library/build/xcframeworks/release/KapstoneKit.xcframework"
+          ZIP_NAME="KapstoneKit.xcframework.zip"
+
+          # Create zip from the parent directory to preserve structure
+          cd library/build/xcframeworks/release
+          zip -r "../../../../$ZIP_NAME" KapstoneKit.xcframework
+          cd ../../../../
+
+          echo "zip_path=$ZIP_NAME" >> $GITHUB_OUTPUT
+          echo "Created $ZIP_NAME"
+          ls -lh "$ZIP_NAME"
+
+      - name: Compute checksum
+        id: checksum
+        run: |
+          ZIP_NAME="${{ steps.zip.outputs.zip_path }}"
+
+          # Compute checksum using Swift Package Manager
+          CHECKSUM=$(swift package compute-checksum "$ZIP_NAME")
+          echo "checksum=$CHECKSUM" >> $GITHUB_OUTPUT
+          echo "Checksum: $CHECKSUM"
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Release ${{ steps.version.outputs.version }}
+          draft: false
+          prerelease: ${{ contains(steps.version.outputs.version, 'alpha') || contains(steps.version.outputs.version, 'beta') || contains(steps.version.outputs.version, 'rc') }}
+          files: ${{ steps.zip.outputs.zip_path }}
+          generate_release_notes: true
+
+      - name: Get release asset URL
+        id: asset_url
+        run: |
+          ZIP_NAME="${{ steps.zip.outputs.zip_path }}"
+          REPO="${{ github.repository }}"
+          TAG="${{ steps.version.outputs.tag }}"
+
+          # GitHub release asset URL format
+          ASSET_URL="https://github.com/${REPO}/releases/download/${TAG}/${ZIP_NAME}"
+          echo "url=$ASSET_URL" >> $GITHUB_OUTPUT
+          echo "Asset URL: $ASSET_URL"
+
+      - name: Update Kapstone.podspec
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          ASSET_URL="${{ steps.asset_url.outputs.url }}"
+          CHECKSUM="${{ steps.checksum.outputs.checksum }}"
+
+          # Update version
+          sed -i '' "s/s.version[[:space:]]*=.*/s.version          = '$VERSION'/" Kapstone.podspec
+
+          # Update source URL
+          sed -i '' "s|s.source[[:space:]]*=.*|s.source           = { :http => '$ASSET_URL' }|" Kapstone.podspec
+
+          # Update vendored_frameworks to use KapstoneKit.xcframework
+          sed -i '' "s/s.vendored_frameworks[[:space:]]*=.*/s.vendored_frameworks = 'KapstoneKit.xcframework'/" Kapstone.podspec
+
+          echo "Updated Kapstone.podspec:"
+          cat Kapstone.podspec
+
+      - name: Update Package.swift
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          ASSET_URL="${{ steps.asset_url.outputs.url }}"
+          CHECKSUM="${{ steps.checksum.outputs.checksum }}"
+
+          # Update URL
+          sed -i '' "s|url: \".*\"|url: \"$ASSET_URL\"|" Package.swift
+
+          # Update checksum
+          sed -i '' "s|checksum: \".*\"|checksum: \"$CHECKSUM\"|" Package.swift
+
+          echo "Updated Package.swift:"
+          cat Package.swift
+
+      - name: Commit updated specs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add Kapstone.podspec Package.swift
+          git commit -m "Update XCFramework specs for version ${{ steps.version.outputs.version }}"
+          git push origin HEAD:main
+
+      - name: Publish to CocoaPods Trunk
+        env:
+          COCOAPODS_TRUNK_TOKEN: ${{ secrets.COCOAPODS_TRUNK_TOKEN }}
+        run: |
+          if [ -z "$COCOAPODS_TRUNK_TOKEN" ]; then
+            echo "Warning: COCOAPODS_TRUNK_TOKEN not set. Skipping CocoaPods publication."
+            echo "To publish to CocoaPods, add COCOAPODS_TRUNK_TOKEN to GitHub secrets."
+            exit 0
+          fi
+
+          # Install CocoaPods if not present
+          if ! command -v pod &> /dev/null; then
+            echo "Installing CocoaPods..."
+            gem install cocoapods
+          fi
+
+          # Validate podspec
+          echo "Validating Kapstone.podspec..."
+          pod spec lint Kapstone.podspec --allow-warnings
+
+          # Publish to trunk
+          echo "Publishing to CocoaPods trunk..."
+          pod trunk push Kapstone.podspec --allow-warnings
+
+          echo "Successfully published to CocoaPods!"
+
+      - name: Summary
+        run: |
+          echo "## XCFramework Published Successfully! 🎉" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Tag:** ${{ steps.version.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Download URL:** ${{ steps.asset_url.outputs.url }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Checksum:** \`${{ steps.checksum.outputs.checksum }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Updated Files" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Kapstone.podspec" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Package.swift" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Distribution" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ GitHub Release created" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ XCFramework uploaded" >> $GITHUB_STEP_SUMMARY
+
+          if [ -n "${{ secrets.COCOAPODS_TRUNK_TOKEN }}" ]; then
+            echo "- ✅ Published to CocoaPods" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ⚠️ CocoaPods publication skipped (token not configured)" >> $GITHUB_STEP_SUMMARY
+          fi

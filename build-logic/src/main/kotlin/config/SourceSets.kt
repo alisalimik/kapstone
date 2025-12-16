@@ -3,6 +3,7 @@ package config
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 import org.jetbrains.kotlin.konan.target.Family
+import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFramework
 
 fun KotlinMultiplatformExtension.configureSourceSets() {
     applyDefaultHierarchyTemplate {
@@ -57,10 +58,11 @@ fun KotlinMultiplatformExtension.configureSourceSets() {
         wasmOptIns()
     }
 
+    val xcf = project.XCFramework("KapstoneKit")
     targets.filterIsInstance<KotlinNativeTarget>().forEach {
         it.configureCapstoneBinaries()
         if (it.konanTarget.family in appleFamilies) {
-            it.configureAppleFramework()
+            it.configureAppleFramework(xcf)
         }
     }
 

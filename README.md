@@ -69,6 +69,7 @@ If you want to build the library from source or contribute to development:
 -   CMake and a C compiler (GCC/Clang) for building the native shared libraries.
 -   Android NDK (optional, for Android targets).
 -   Emscripten (optional, for Web/Wasm targets).
+-   Xcode (macOS only, for building XCFrameworks).
 
 ### Build Commands
 
@@ -79,6 +80,19 @@ To build the library and all its underlying native dependencies, run:
 ```
 
 This task will compile the Kotlin code and also trigger the build of the embedded Capstone C library for all enabled targets on your host machine.
+
+### Building XCFrameworks (macOS only)
+
+For Apple platform distribution, you can build a unified XCFramework containing all Apple platforms:
+
+```bash
+# Build unified XCFramework (iOS, macOS, watchOS, tvOS)
+./gradlew :library:assembleXCFramework
+```
+
+This creates a single `CapstoneKtKit.xcframework` file that works on all Apple devices and simulators.
+
+See [XCFRAMEWORK.md](XCFRAMEWORK.md) for detailed documentation on building and using XCFrameworks.
 
 ## Usage
 
