@@ -18,6 +18,8 @@ binvalidator = "0.18.1"
 ## Kotlin standard
 kotlin-test = { group = "org.jetbrains.kotlin", name = "kotlin-test", version.ref = "kotlin" }
 kotlin-stdlib = { group = "org.jetbrains.kotlin", name = "kotlin-stdlib", version.ref = "kotlin" }
+kotlin-stdlib-js = { group = "org.jetbrains.kotlin", name = "kotlin-stdlib-js", version.ref = "kotlin" }
+kotlin-stdlib-wasm = { group = "org.jetbrains.kotlin", name = "kotlin-stdlib-wasm-js", version.ref = "kotlin" }
 
 ## Kotlin extensions
 kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines" }

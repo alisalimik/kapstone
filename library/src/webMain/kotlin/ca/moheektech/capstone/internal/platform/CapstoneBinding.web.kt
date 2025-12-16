@@ -3,7 +3,23 @@ package ca.moheektech.capstone.internal.platform
 import ca.moheektech.capstone.Instruction
 import ca.moheektech.capstone.InternalInstruction
 import ca.moheektech.capstone.api.DisassemblyPosition
-import ca.moheektech.capstone.arch.*
+import ca.moheektech.capstone.arch.AArch64InstructionDetail
+import ca.moheektech.capstone.arch.AArch64MemoryOperand
+import ca.moheektech.capstone.arch.AArch64Operand
+import ca.moheektech.capstone.arch.ArchDetail
+import ca.moheektech.capstone.arch.ArmInstructionDetail
+import ca.moheektech.capstone.arch.ArmMemoryOperand
+import ca.moheektech.capstone.arch.ArmOperand
+import ca.moheektech.capstone.arch.X86AVXBroadcast
+import ca.moheektech.capstone.arch.X86AVXCC
+import ca.moheektech.capstone.arch.X86AVXRM
+import ca.moheektech.capstone.arch.X86EFlags
+import ca.moheektech.capstone.arch.X86InstructionDetail
+import ca.moheektech.capstone.arch.X86MemoryOperand
+import ca.moheektech.capstone.arch.X86OpType
+import ca.moheektech.capstone.arch.X86Operand
+import ca.moheektech.capstone.arch.X86Prefix
+import ca.moheektech.capstone.arch.X86SSECC
 import ca.moheektech.capstone.enums.AccessType
 import ca.moheektech.capstone.enums.Architecture
 import ca.moheektech.capstone.enums.CapstoneOption
@@ -13,9 +29,19 @@ import ca.moheektech.capstone.error.CapstoneError
 import ca.moheektech.capstone.error.CapstoneResult
 import ca.moheektech.capstone.error.ErrorCode
 import ca.moheektech.capstone.error.toError
-import ca.moheektech.capstone.exp.*
-import ca.moheektech.capstone.exp.aarch64.*
-import ca.moheektech.capstone.exp.arm.*
+import ca.moheektech.capstone.exp.aarch64.AArch64ConditionCode
+import ca.moheektech.capstone.exp.aarch64.AArch64Extender
+import ca.moheektech.capstone.exp.aarch64.AArch64OpType
+import ca.moheektech.capstone.exp.aarch64.AArch64Shifter
+import ca.moheektech.capstone.exp.aarch64.AArch64VectorLayout
+import ca.moheektech.capstone.exp.arm.ArmConditionCode
+import ca.moheektech.capstone.exp.arm.ArmCpsFlagType
+import ca.moheektech.capstone.exp.arm.ArmCpsModeType
+import ca.moheektech.capstone.exp.arm.ArmMemoryBarrierOption
+import ca.moheektech.capstone.exp.arm.ArmOpType
+import ca.moheektech.capstone.exp.arm.ArmSetEndType
+import ca.moheektech.capstone.exp.arm.ArmShifter
+import ca.moheektech.capstone.exp.arm.ArmVectorDataType
 import ca.moheektech.capstone.internal.CapstoneModuleInstance
 import ca.moheektech.capstone.model.InstructionDetail
 import ca.moheektech.capstone.model.Register
@@ -42,7 +68,6 @@ import kotlin.js.Promise
 import kotlin.let
 import kotlin.runCatching
 import kotlin.text.decodeToString
-import kotlinx.coroutines.await
 
 internal expect suspend fun loadCapstoneModule(): Promise<CapstoneModuleInstance>
 
@@ -300,7 +325,7 @@ internal class WasmCapstoneBinding(private val architecture: Architecture, priva
     // Copy instruction bytes
     val bytes = ByteArray(size)
     for (i in 0 until size) {
-      bytes[i] = (module.getValue(insnPtr + 26 + i, "i8") as JsAny).toInt().toByte()
+      bytes[i] = module.getValue(insnPtr + 26 + i, "i8").toInt().toByte()
     }
 
     // Get mnemonic and operand string (null-terminated)

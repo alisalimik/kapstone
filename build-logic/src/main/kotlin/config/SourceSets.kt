@@ -7,6 +7,11 @@ import org.jetbrains.kotlin.konan.target.Family
 fun KotlinMultiplatformExtension.configureSourceSets() {
     applyDefaultHierarchyTemplate {
         common {
+            group("web") {
+                withWasmJs()
+                withJs()
+            }
+
             group("nonNative") {
                 withJvm()
                 withAndroidTarget()
