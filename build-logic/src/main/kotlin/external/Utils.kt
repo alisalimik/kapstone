@@ -160,7 +160,7 @@ fun Project.registerCapstoneBuildTasks() {
             val buildCapstoneAndroidTask = tasks.findByName("buildCapstoneAndroid")
             if (buildCapstoneAndroidTask != null) {
                 preBuildTask.dependsOn(buildCapstoneAndroidTask)
-                logger.info("Configured preBuild to depend on buildCapstoneAndroid")
+                logger.lifecycle("Configured preBuild to depend on buildCapstoneAndroid")
             }
         }
 
@@ -168,10 +168,16 @@ fun Project.registerCapstoneBuildTasks() {
         tasks.matching { it.name.contains("cinterop", ignoreCase = true) }.configureEach(object : Action<Task> {
             override fun execute(cinteropTask: Task) {
                 val targetName = extractTargetFromCinteropTaskName(cinteropTask.name)
+                logger.lifecycle("Processing cinterop task: ${cinteropTask.name}, extracted target: $targetName")
                 if (targetName != null) {
-                    val capstoneBuildTask = tasks.findByName("buildCapstone${targetName.capitalize()}")
+                    val buildTaskName = "buildCapstone${targetName.capitalize()}"
+                    val capstoneBuildTask = tasks.findByName(buildTaskName)
+                    logger.lifecycle("Looking for build task: $buildTaskName, found: ${capstoneBuildTask != null}")
                     if (capstoneBuildTask != null) {
                         cinteropTask.dependsOn(capstoneBuildTask)
+                        logger.lifecycle("✓ Configured ${cinteropTask.name} to depend on $buildTaskName")
+                    } else {
+                        logger.warn("⚠ Could not find build task $buildTaskName for cinterop task ${cinteropTask.name}")
                     }
                 }
             }
@@ -185,7 +191,7 @@ fun Project.registerCapstoneBuildTasks() {
                     val capstoneBuildTask = tasks.findByName("buildCapstone${targetName.capitalize()}")
                     if (capstoneBuildTask != null) {
                         compileTask.dependsOn(capstoneBuildTask)
-                        logger.info("Configured ${compileTask.name} to depend on buildCapstone${targetName.capitalize()}")
+                        logger.lifecycle("✓ Configured ${compileTask.name} to depend on buildCapstone${targetName.capitalize()}")
                     }
                 }
             }
@@ -198,7 +204,9 @@ private fun String.capitalize(): String {
 }
 
 private fun extractTargetFromCinteropTaskName(taskName: String): String? {
-    val pattern = """cinterop\w+([A-Z][a-zA-Z0-9]+)""".toRegex()
+    // Task name format: cinteropCapstone<TargetName>
+    // We want to extract <TargetName> which starts with an uppercase letter
+    val pattern = """cinteropCapstone([A-Z][a-zA-Z0-9]+)""".toRegex()
     val match = pattern.find(taskName)
     return match?.groupValues?.get(1)?.let {
         it.replaceFirstChar { char -> char.lowercase() }
