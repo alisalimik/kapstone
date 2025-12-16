@@ -45,6 +45,12 @@ abstract class BuildCapstoneTask @Inject constructor(
     abstract val mingwX86: Property<Boolean>
 
     @get:Input
+    abstract val hasMingwX64CrossGCC: Property<Boolean>
+
+    @get:Input
+    abstract val hasMingwX86CrossGCC: Property<Boolean>
+
+    @get:Input
     abstract val hasEmscripten: Property<Boolean>
 
     @get:Input
@@ -73,6 +79,8 @@ abstract class BuildCapstoneTask @Inject constructor(
             nativeWindows = nativeWindows.get(),
             mingwX64 = mingwX64.get(),
             mingwX86 = mingwX86.get(),
+            hasMingwX64CrossGCC = hasMingwX64CrossGCC.get(),
+            hasMingwX86CrossGCC = hasMingwX86CrossGCC.get(),
             hasEmscripten = hasEmscripten.get(),
             emscriptenToolchainFile = emscriptenToolchainFile.get(),
             emscriptenRoot = emscriptenRoot.orNull?.takeIf { it.isNotEmpty() }?.let { java.io.File(it) },

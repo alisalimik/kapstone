@@ -72,6 +72,8 @@ fun Project.registerCapstoneBuildTasks() {
         task.nativeWindows.set(this@registerCapstoneBuildTasks.toolchains.nativeWindows)
         task.mingwX64.set(this@registerCapstoneBuildTasks.toolchains.mingwX64)
         task.mingwX86.set(this@registerCapstoneBuildTasks.toolchains.mingwX86)
+        task.hasMingwX64CrossGCC.set(this@registerCapstoneBuildTasks.toolchains.hasMingwX64CrossGCC)
+        task.hasMingwX86CrossGCC.set(this@registerCapstoneBuildTasks.toolchains.hasMingwX86CrossGCC)
         task.hasEmscripten.set(this@registerCapstoneBuildTasks.toolchains.hasEmscripten)
         task.emscriptenToolchainFile.set(this@registerCapstoneBuildTasks.toolchains.findEmscriptenToolchain())
         task.emscriptenRoot.set(this@registerCapstoneBuildTasks.toolchains.getEmscriptenRoot())

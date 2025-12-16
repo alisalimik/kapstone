@@ -211,8 +211,14 @@ jobs:
           brew install aarch64-unknown-linux-gnu || echo "aarch64-unknown-linux-gnu installation failed"
 
           # Install MinGW for Windows cross-compilation
-          echo "Installing MinGW for Windows..."
-          brew install mingw-w64 || echo "mingw-w64 installation failed"
+          echo "Installing MinGW for Windows cross-compilation..."
+          brew install mingw-w64
+
+          # Verify MinGW installation
+          echo "Verifying MinGW installation..."
+          which x86_64-w64-mingw32-gcc || echo "x86_64-w64-mingw32-gcc not found"
+          which i686-w64-mingw32-gcc || echo "i686-w64-mingw32-gcc not found"
+          x86_64-w64-mingw32-gcc --version || echo "x86_64-w64-mingw32-gcc not working"
 
           # Install Zig as fallback
           echo "Installing Zig as fallback..."
@@ -239,10 +245,16 @@ jobs:
           ls -la "$(xcode-select -p)/Platforms/AppleTVOS.platform/Developer/SDKs/" || true
           echo ""
           echo "=== Cross-Compilation Tools ==="
+          echo "Zig:"
           zig version || echo "Zig not installed"
+          echo ""
+          echo "Linux cross-compilers:"
           x86_64-unknown-linux-gnu-gcc --version || echo "Linux x64 toolchain not installed"
           aarch64-unknown-linux-gnu-gcc --version || echo "Linux ARM64 toolchain not installed"
+          echo ""
+          echo "MinGW cross-compilers:"
           x86_64-w64-mingw32-gcc --version || echo "MinGW x64 not installed"
+          i686-w64-mingw32-gcc --version || echo "MinGW x86 not installed"
 
       - name: Cache Kotlin/Native
         uses: actions/cache@v5
@@ -263,6 +275,17 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-capstone-all-
             ${{ runner.os }}-capstone-
+
+      - name: Setup PATH for Homebrew tools
+        run: |
+          echo "Current PATH: $PATH"
+          echo "/opt/homebrew/bin:/opt/homebrew/sbin:$PATH" >> $GITHUB_PATH
+          echo "Updated PATH: /opt/homebrew/bin:/opt/homebrew/sbin:$PATH"
+
+          # Verify commands are accessible
+          echo "Verifying MinGW is in PATH..."
+          which x86_64-w64-mingw32-gcc || echo "WARNING: x86_64-w64-mingw32-gcc not found in PATH"
+          which i686-w64-mingw32-gcc || echo "WARNING: i686-w64-mingw32-gcc not found in PATH"
 
       - name: Build Capstone for all targets
         run: ./gradlew buildCapstoneAll --stacktrace

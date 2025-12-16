@@ -60,6 +60,14 @@ open class ToolchainProviders(private val project: Project) {
         }
     }
 
+    val hasMingwX64CrossGCC: Provider<Boolean> by lazy {
+        commandExists("x86_64-w64-mingw32-gcc")
+    }
+
+    val hasMingwX86CrossGCC: Provider<Boolean> by lazy {
+        commandExists("i686-w64-mingw32-gcc")
+    }
+
     val linuxArm32: Provider<Boolean> by lazy {
         project.providers.provider {
             Host.isLinux || commandExists("arm-linux-gnueabihf-gcc").get() || hasZig.get()

@@ -19,6 +19,8 @@ data class BuildContext(
     val nativeWindows: Boolean,
     val mingwX64: Boolean,
     val mingwX86: Boolean,
+    val hasMingwX64CrossGCC: Boolean,
+    val hasMingwX86CrossGCC: Boolean,
     val hasEmscripten: Boolean,
     val emscriptenToolchainFile: String,
     val emscriptenRoot: File?,

@@ -174,6 +174,13 @@ object CapstoneBuildConfigs {
         val useCrossGCC = project.toolchains.commandExists("$triple-gcc").get()
         val isNativeWindows = Host.isWindows
 
+        // Debug logging
+        println("Configuration: mingwConfig for $targetName (triple=$triple, arch=$arch)")
+        println("  - isNativeWindows: $isNativeWindows")
+        println("  - useZig: $useZig")
+        println("  - useCrossGCC ($triple-gcc): $useCrossGCC")
+        println("  - shared: $shared")
+
         return when {
             // On native Windows, use the native MinGW compiler (let CMake find it)
             isNativeWindows && project.toolchains.mingwX64.get() && arch == "x86_64" -> {
@@ -512,41 +519,74 @@ object CapstoneBuildConfigs {
         // Helper to create mingw configs
         fun mingwConfigFromContext(targetName: String, arch: String, shared: Boolean = false): CapstoneBuildConfig {
             val isNativeWindows = buildContext.nativeWindows
+            val hasCrossGCC = if (arch == "x86_64") buildContext.hasMingwX64CrossGCC else buildContext.hasMingwX86CrossGCC
+            val triple = if (arch == "x86_64") "x86_64-w64-mingw32" else "i686-w64-mingw32"
+
+            // Debug logging
+            buildContext.logger.lifecycle("Configuration: mingwConfigFromContext for $targetName (triple=$triple, arch=$arch)")
+            buildContext.logger.lifecycle("  - isNativeWindows: $isNativeWindows")
+            buildContext.logger.lifecycle("  - hasCrossGCC: $hasCrossGCC")
+            buildContext.logger.lifecycle("  - mingwX64: ${buildContext.mingwX64}, mingwX86: ${buildContext.mingwX86}")
 
             return when {
                 // On native Windows, use the native MinGW compiler
-                isNativeWindows && buildContext.mingwX64 && arch == "x86_64" -> CapstoneBuildConfig(
-                    targetName = targetName,
-                    cmakeSystemName = "Windows",
-                    enabled = true,
-                    buildShared = shared
-                )
-                isNativeWindows && buildContext.mingwX86 && arch == "x86" -> CapstoneBuildConfig(
-                    targetName = targetName,
-                    cmakeSystemName = "Windows",
-                    enabled = true,
-                    buildShared = shared
-                )
-                // Cross-compilation: use Zig only if not on Windows
-                !isNativeWindows && (buildContext.mingwX64 || buildContext.mingwX86) -> CapstoneBuildConfig(
-                    targetName = targetName,
-                    cmakeSystemName = "Windows",
-                    cCompiler = "zig",
-                    cxxCompiler = "zig",
-                    additionalCMakeArgs = listOf(
-                        "-DCMAKE_C_FLAGS=-target $arch-windows-gnu",
-                        "-DCMAKE_CXX_FLAGS=-target $arch-windows-gnu",
-                        "-DCMAKE_EXE_LINKER_FLAGS=-target $arch-windows-gnu",
-                        "-DCMAKE_SHARED_LINKER_FLAGS=-target $arch-windows-gnu"
-                    ),
-                    enabled = true,
-                    buildShared = shared
-                )
-                else -> CapstoneBuildConfig(
-                    targetName = targetName,
-                    enabled = false,
-                    buildShared = shared
-                )
+                isNativeWindows && buildContext.mingwX64 && arch == "x86_64" -> {
+                    buildContext.logger.lifecycle("Configuration: Using native MinGW for $targetName")
+                    CapstoneBuildConfig(
+                        targetName = targetName,
+                        cmakeSystemName = "Windows",
+                        enabled = true,
+                        buildShared = shared
+                    )
+                }
+                isNativeWindows && buildContext.mingwX86 && arch == "x86" -> {
+                    buildContext.logger.lifecycle("Configuration: Using native MinGW for $targetName")
+                    CapstoneBuildConfig(
+                        targetName = targetName,
+                        cmakeSystemName = "Windows",
+                        enabled = true,
+                        buildShared = shared
+                    )
+                }
+                // Cross-compilation: prefer MinGW cross-GCC over Zig
+                hasCrossGCC -> {
+                    buildContext.logger.lifecycle("Configuration: Using MinGW cross-GCC for $targetName ($triple-gcc)")
+                    CapstoneBuildConfig(
+                        targetName = targetName,
+                        cCompiler = "$triple-gcc",
+                        cxxCompiler = "$triple-g++",
+                        cmakeSystemName = "Windows",
+                        cmakeSystemProcessor = if (arch == "x86_64") "AMD64" else "x86",
+                        enabled = true,
+                        buildShared = shared
+                    )
+                }
+                // Cross-compilation: use Zig as fallback
+                !isNativeWindows && (buildContext.mingwX64 || buildContext.mingwX86) -> {
+                    buildContext.logger.lifecycle("Configuration: Using Zig for $targetName (MinGW cross-GCC not found)")
+                    CapstoneBuildConfig(
+                        targetName = targetName,
+                        cmakeSystemName = "Windows",
+                        cCompiler = "zig",
+                        cxxCompiler = "zig",
+                        additionalCMakeArgs = listOf(
+                            "-DCMAKE_C_FLAGS=-target $arch-windows-gnu",
+                            "-DCMAKE_CXX_FLAGS=-target $arch-windows-gnu",
+                            "-DCMAKE_EXE_LINKER_FLAGS=-target $arch-windows-gnu",
+                            "-DCMAKE_SHARED_LINKER_FLAGS=-target $arch-windows-gnu"
+                        ),
+                        enabled = true,
+                        buildShared = shared
+                    )
+                }
+                else -> {
+                    buildContext.logger.lifecycle("Configuration: No toolchain found for $targetName")
+                    CapstoneBuildConfig(
+                        targetName = targetName,
+                        enabled = false,
+                        buildShared = shared
+                    )
+                }
             }
         }
 
