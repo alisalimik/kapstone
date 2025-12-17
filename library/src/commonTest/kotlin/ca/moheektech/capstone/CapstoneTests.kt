@@ -282,7 +282,7 @@ class CapstoneTests {
       val insns = result.getOrThrow()
 
       assertEquals(1, insns.size)
-      assertEquals("lsl", insns[0].mnemonic)
+      assertEquals("ubfx", insns[0].mnemonic)
     }
   }
 

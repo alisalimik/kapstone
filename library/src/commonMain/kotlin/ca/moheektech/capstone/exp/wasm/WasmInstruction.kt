@@ -1,9 +1,7 @@
 package ca.moheektech.capstone.exp.wasm
 
 import ca.moheektech.capstone.exp.INumericEnum
-import ca.moheektech.capstone.internal.ExportedApi
 
-@ExportedApi
 expect enum class WasmInstruction : INumericEnum {
   UNREACHABLE,
   NOP,

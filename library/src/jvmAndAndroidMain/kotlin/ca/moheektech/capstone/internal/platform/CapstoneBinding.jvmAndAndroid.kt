@@ -573,6 +573,6 @@ internal class JnaCapstoneBinding(
         avxRm = X86AvxRoundingMode.fromValue(x86.avx_rm),
         avxSae = x86.avx_sae > 0,
         eflags = BitField.fromValue(x86.eflags.toULong()),
-        fpuFlags = x86.fpu_flags)
+        fpuFlags = x86.eflags)
   }
 }

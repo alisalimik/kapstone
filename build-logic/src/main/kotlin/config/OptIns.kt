@@ -10,7 +10,6 @@ fun KotlinSourceSet.nativeOptIns() {
 
 fun KotlinSourceSet.jsOptIns() {
     languageSettings.optIn("kotlin.js.ExperimentalWasmJsInterop")
-    languageSettings.optIn("kotlin.js.ExperimentalJsStatic")
 }
 
 fun KotlinSourceSet.wasmOptIns() {
@@ -21,4 +20,5 @@ fun KotlinSourceSet.wasmOptIns() {
 fun KotlinSourceSet.commonOptIns() {
     languageSettings.optIn("kotlin.ExperimentalUnsignedTypes")
     languageSettings.optIn("kotlin.time.ExperimentalTime")
+    languageSettings.optIn("kotlin.js.ExperimentalJsStatic")
 }

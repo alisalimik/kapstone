@@ -6,7 +6,7 @@ internal class X86Operand : Structure() {
   @JvmField var type: Int = 0
   @JvmField var value: X86OpValue = X86OpValue()
   @JvmField var size: Byte = 0
-  @JvmField var access: Byte = 0
+  @JvmField var access: Int = 0
   @JvmField var avx_bcast: Int = 0
   @JvmField var avx_zero_opmask: Boolean = false
 

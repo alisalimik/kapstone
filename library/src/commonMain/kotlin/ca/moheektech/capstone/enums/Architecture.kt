@@ -18,20 +18,20 @@ enum class Architecture(val value: Int) {
   /** ARM64 (AArch64) architecture */
   ARM64(1),
 
+  /** SystemZ architecture */
+  SYSZ(2),
+
   /** MIPS architecture */
-  MIPS(2),
+  MIPS(3),
 
   /** X86 architecture */
-  X86(3),
+  X86(4),
 
   /** PowerPC architecture */
-  PPC(4),
+  PPC(5),
 
   /** Sparc architecture */
-  SPARC(5),
-
-  /** SystemZ architecture */
-  SYSZ(6),
+  SPARC(6),
 
   /** XCore architecture */
   XCORE(7),
