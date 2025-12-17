@@ -90,7 +90,7 @@ internal expect fun <T : JsAny> JsAny.unsafeCast(): T
  *
  * This implementation uses Emscripten-compiled Capstone via JS interop.
  */
-internal actual fun createPlatformBinding(architecture: Architecture, mode: Mode): CapstoneBinding =
+internal actual fun createPlatformBinding(architecture: Architecture, mode: BitField<Mode>): CapstoneBinding =
     WasmCapstoneBinding(architecture, mode)
 
 internal actual fun getPlatformVersion(): Pair<Int, Int> {
@@ -131,7 +131,7 @@ internal fun getModuleInstance(): CapstoneModuleInstance {
 }
 
 /** Wasm/JS-based Capstone binding implementation */
-internal class WasmCapstoneBinding(private val architecture: Architecture, private val mode: Mode) :
+internal class WasmCapstoneBinding(private val architecture: Architecture, private val mode: BitField<Mode>) :
     CapstoneBinding {
 
   private val module: CapstoneModuleInstance = getModuleInstance()
@@ -140,7 +140,7 @@ internal class WasmCapstoneBinding(private val architecture: Architecture, priva
   private var detailEnabled = false
 
   init {
-    val err = module._cs_open(architecture.value, mode.value, handlePtr)
+    val err = module._cs_open(architecture.value, mode.value.toInt(), handlePtr)
 
     if (err != ErrorCode.OK.value) {
       val errorStrPtr = module._cs_strerror(err)
