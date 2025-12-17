@@ -22,6 +22,14 @@ val publishProperties by lazy {
     loadProperties(File("publish.properties"))
 }
 
+fun getNamespace(): String {
+    return publishProperties["GROUP"].toString()
+}
+
+fun getModuleName(): String {
+    return publishProperties["POM_NAME"].toString().lowercase()
+}
+
 fun Project.configureProjectMeta() {
     group = publishProperties["GROUP"].toString()
     version = publishProperties["VERSION"].toString()
@@ -224,9 +232,9 @@ private fun loadProperties(file: File): Properties {
 
 fun KotlinJsTargetDsl.configurePublishing() {
     compilations["main"].packageJson {
-        name = "@${publishProperties["POM_DEVELOPER_ID"] ?: "alisalimik"}/kapstone-kt"
-        main = "capstone-kt.mjs"
-        types = "capstone-kt.d.mts"
+        name = "@${publishProperties["POM_DEVELOPER_ID"] ?: "alisalimik"}/${getModuleName()}"
+        main = "${getModuleName()}.mjs"
+        types = "${getModuleName()}.d.mts"
         private = false
         version = publishProperties["VERSION"]?.toString() ?: "1.0.0-alpha01"
         customField("keywords", listOf("kapstone", "capstone", "disassembler", "decompiler"))

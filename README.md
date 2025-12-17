@@ -52,8 +52,9 @@ dependencies {
 Add to your `pom.xml`:
 
 ```xml
+
 <dependency>
-    <groupId>ca.moheektech.kapstone</groupId>
+    <groupId>ir.alisalimik.kapstone</groupId>
     <artifactId>kapstone</artifactId>
     <version>1.0.0-alpha01</version>
 </dependency>

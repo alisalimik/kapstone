@@ -2,32 +2,29 @@
 
 package config
 
-import com.android.build.api.dsl.MinSdkVersion
 import com.android.build.api.dsl.androidLibrary
 import org.gradle.api.Project
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import platform.Host
 import platform.toolchains
-import kotlin.text.get
 
 context(project: Project)
 fun KotlinMultiplatformExtension.configureTargets() {
     jvm()
 
     androidLibrary {
-        namespace = "ca.moheektech.capstone"
+        namespace = getNamespace()
         compileSdk = 36
         minSdk = 21
 
         withDeviceTest {
             instrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-            // execution = "ANDROIDX_TEST_ORCHESTRATOR"
         }
 
     }
 
     js(IR) {
-        outputModuleName.set("capstone-kt")
+        outputModuleName.set(getModuleName())
         nodejs()
         browser()
         compilerOptions {
@@ -42,7 +39,7 @@ fun KotlinMultiplatformExtension.configureTargets() {
     }
 
     wasmJs {
-        outputModuleName.set("capstone-kt")
+        outputModuleName.set(getModuleName())
         nodejs()
         browser()
         compilerOptions {
