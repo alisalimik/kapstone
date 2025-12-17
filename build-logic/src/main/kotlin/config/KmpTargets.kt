@@ -15,13 +15,13 @@ fun KotlinMultiplatformExtension.configureTargets() {
     jvm()
 
     androidLibrary {
-        namespace = "ca.moheektech.kapstone"
+        namespace = "ca.moheektech.capstone"
         compileSdk = 36
         minSdk = 21
 
         withDeviceTest {
             instrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-            execution = "ANDROIDX_TEST_ORCHESTRATOR"
+            // execution = "ANDROIDX_TEST_ORCHESTRATOR"
         }
 
     }
