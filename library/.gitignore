@@ -34,6 +34,6 @@
 /src/jvmMain/resources/libs/capstone-windows-x86/capstone.dll
 /src/webMain/resources/capstone.js
 /src/webMain/resources/capstone.wasm
-/src/wasmWasiMain/resources/capstone-bridge.mjs
 /src/wasmWasiMain/resources/capstone.wasm
 /interop/lib/linuxArm32Hfp/libcapstone.a
+/src/wasmWasiMain/resources/capstone-wasi.wasm

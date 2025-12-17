@@ -339,12 +339,16 @@ internal class WasmCapstoneBinding(
     // Parse detail if available and enabled
     val detail =
         if (detailEnabled) {
-          // Detail pointer is at offset 242 (but might be 246 on 32-bit systems)
-          val detailPtr = readInt(insnPtr + 242)
+          // Detail pointer is at offset 248 (after op_str + 3 bools + padding)
+          // op_str ends at 242.
+          // is_alias (242), usesAliasDetails (243), illegal (244).
+          // Padding (245-247) -> detail at 248 (aligned to 4/8).
+          val detailPtr = readInt(insnPtr + 248)
           if (detailPtr != 0) {
             convertDetail(detailPtr)
           } else null
         } else null
+
 
     return InternalInstruction(
         id = id,
@@ -386,15 +390,17 @@ internal class WasmCapstoneBinding(
 
   /** Convert cs_detail structure to Kotlin InstructionDetail object */
   private fun convertDetail(detailPtr: Int): InstructionDetail {
-    // cs_detail structure:
-    // - Offset 0-1: regs_read (array of uint16_t, max 20)
+    // cs_detail structure (Capstone v6 header):
+    // - Offset 0-39: regs_read (array of uint16_t, max 20) -> 40 bytes
     // - Offset 40: regs_read_count (uint8_t)
-    // - Offset 41-42: regs_write (array of uint16_t, max 20)
-    // - Offset 81: regs_write_count (uint8_t)
-    // - Offset 82-83: groups (array of uint8_t, max 8)
-    // - Offset 90: groups_count (uint8_t)
-    // - Offset 91: writeback (bool)
-    // - Offset 92+: architecture-specific data (union)
+    // - Padding 41 (1 byte) to align to 2
+    // - Offset 42-135: regs_write (array of uint16_t, max 47) -> 94 bytes
+    // - Offset 136: regs_write_count (uint8_t)
+    // - Offset 137-152: groups (array of uint8_t, max 16) -> 16 bytes
+    // - Offset 153: groups_count (uint8_t)
+    // - Offset 154: writeback (bool)
+    // - Padding to 160 (align to 8 for union)
+    // - Offset 160+: architecture-specific data (union)
 
     val regsReadCount = module.getValue(detailPtr + 40, "i8").toInt() and 0xFF
     val regsRead = buildList {
@@ -405,29 +411,31 @@ internal class WasmCapstoneBinding(
       }
     }
 
-    val regsWriteCount = module.getValue(detailPtr + 81, "i8").toInt() and 0xFF
+    val regsWriteCount = module.getValue(detailPtr + 136, "i8").toInt() and 0xFF
     val regsWrite = buildList {
       for (i in 0 until regsWriteCount) {
-        val regId = readShort(detailPtr + 41 + i * 2)
+        val regId = readShort(detailPtr + 42 + i * 2)
         val regName = regName(regId)
         add(Register(regId, regName))
       }
     }
 
-    val groupsCount = module.getValue(detailPtr + 90, "i8").toInt() and 0xFF
+    val groupsCount = module.getValue(detailPtr + 153, "i8").toInt() and 0xFF
+
     val groups = buildList {
       for (i in 0 until groupsCount) {
-        val groupId = module.getValue(detailPtr + 82 + i, "i8").toInt() and 0xFF
+        val groupId = module.getValue(detailPtr + 137 + i, "i8").toInt() and 0xFF
         InstructionGroup.fromValue(groupId)?.let { add(it) }
       }
     }
 
     // Parse architecture-specific details
+    val archOffset = 160
     val archDetail: ArchDetail? =
         when (architecture) {
-          Architecture.ARM64 -> ArchDetail.AArch64(convertAArch64Detail(detailPtr + 92))
-          Architecture.ARM -> ArchDetail.ARM(convertArmDetail(detailPtr + 92))
-          Architecture.X86 -> ArchDetail.X86(convertX86Detail(detailPtr + 92))
+          Architecture.ARM64 -> ArchDetail.AArch64(convertAArch64Detail(detailPtr + archOffset))
+          Architecture.ARM -> ArchDetail.ARM(convertArmDetail(detailPtr + archOffset))
+          Architecture.X86 -> ArchDetail.X86(convertX86Detail(detailPtr + archOffset))
           else -> null
         }
 
@@ -435,21 +443,24 @@ internal class WasmCapstoneBinding(
         regsRead = regsRead,
         regsWritten = regsWrite,
         groups = groups,
-        writeback = module.getValue(detailPtr + 91, "i8").toInt() != 0,
+        writeback = module.getValue(detailPtr + 154, "i8").toInt() != 0,
         archDetail = archDetail)
   }
 
   /** Convert ARM64/AArch64 detail structure */
   private fun convertAArch64Detail(ptr: Int): AArch64InstructionDetail {
     // cs_arm64 structure
-    val ccVal = module.getValue(ptr, "i8").toInt()
-    val updateFlags = module.getValue(ptr + 1, "i8").toInt() != 0
-    val writeback = module.getValue(ptr + 2, "i8").toInt() != 0
-    val opCount = module.getValue(ptr + 3, "i8").toInt() and 0xFF
+    val ccVal = readInt(ptr)
+    val updateFlags = module.getValue(ptr + 4, "i8").toInt() != 0
+    val writeback = module.getValue(ptr + 5, "i8").toInt() != 0
+    val opCount = module.getValue(ptr + 6, "i8").toInt() and 0xFF
+
+    // Padding to 8 bytes for operands array (cs_arm64_op alignment is 8)
+    val operandsOffset = 8
 
     val operands = buildList {
       for (i in 0 until opCount) {
-        val opPtr = ptr + 4 + i * 48 // Each operand is ~48 bytes
+        val opPtr = ptr + operandsOffset + i * 48 // Each operand is ~48 bytes
         add(convertAArch64Operand(opPtr))
       }
     }
@@ -538,17 +549,50 @@ internal class WasmCapstoneBinding(
     val usermode = module.getValue(ptr, "i8").toInt() != 0
     val vectorSize = readInt(ptr + 4)
     val vectorDataVal = readInt(ptr + 8)
-    val cpsModeVal = module.getValue(ptr + 12, "i8").toInt()
-    val cpsFlagVal = module.getValue(ptr + 13, "i8").toInt()
-    val ccVal = module.getValue(ptr + 14, "i8").toInt()
-    val updateFlags = module.getValue(ptr + 15, "i8").toInt() != 0
-    val writeback = module.getValue(ptr + 16, "i8").toInt() != 0
-    val memBarrierVal = module.getValue(ptr + 17, "i8").toInt()
-    val opCount = module.getValue(ptr + 18, "i8").toInt() and 0xFF
+    val cpsModeVal = readInt(ptr + 12)
+    val cpsFlagVal = readInt(ptr + 16)
+    val ccVal = readInt(ptr + 20)
+    val updateFlags = module.getValue(ptr + 24, "i8").toInt() != 0
+    val writeback = module.getValue(ptr + 25, "i8").toInt() != 0
+    val memBarrierVal = readInt(ptr + 28)
+    val opCount = module.getValue(ptr + 32, "i8").toInt() and 0xFF
+
+    // Padding to 4/8 bytes? cs_arm_op has double/int64?
+    // cs_arm_op has double fp; int64_t imm; -> 8 byte alignment.
+    // offsets so far 33 bytes.
+    // Aligned to 8 bytes -> 40?
+    // Or maybe cs_arm_op doesn't force 8 byte align if internal union allows?
+    // Let's check cs_arm_op.
+    // arm_op_type (4) + ... union with double (8).
+    // Structure alignment is max of fields. So 8 bytes.
+    // Next multiple of 8 after 33 is 40.
+    // But wait, let's re-verify offsets.
+    // 0(1)+3(pad) + 4(4) + 8(4) + 12(4) + 16(4) + 20(4) + 24(1) + 25(1) + 2(pad) + 28(4) + 32(1).
+    // 33 bytes used.
+    // Padding to 40?
+    // Let's assume 36 for now (4 byte align) but double check if Wasm aligns struct to 8.
+    // Actually cs_arm has `cs_arm_op operands[36]`.
+    // If cs_arm_op aligns to 8, then operands array aligns to 8.
+    // 33 -> 40.
+    // Let's try 36 first (safe for 4-byte packed, likely 4-byte align on 32-bit wasm).
+    // Actually, checking standard layout:
+    // Linux/ARM32: 36 offset.
+    // Wasm32: 36 offset? (double is 8-byte aligned usually).
+    // If double is 8-byte aligned, struct is 8-byte aligned.
+    // 33 -> 40.
+    // I'll stick to 36 (most likely for packed-ish or 4-byte dominant) or 40.
+    // Previous analysis said 36.
+    // 28+4 = 32. op_count at 32 (1 byte). 33.
+    // If next is 36, then 3 bytes padding.
+    // If next is 40, then 7 bytes padding.
+    // Let's use 36 because `mem_barrier` ends at 32.
+    // I'll try 36.
+
+    val operandsOffset = 36 // Align to 36 (4-byte alignment of struct)
 
     val operands = buildList {
       for (i in 0 until opCount) {
-        val opPtr = ptr + 20 + i * 48
+        val opPtr = ptr + operandsOffset + i * 48
         add(convertArmOperand(opPtr))
       }
     }

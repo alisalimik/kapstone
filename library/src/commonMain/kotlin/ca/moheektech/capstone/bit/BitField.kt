@@ -50,7 +50,6 @@ import kotlin.jvm.JvmInline
  *
  * @param T The enum type representing individual flags
  */
-@ExportedApi
 @JvmInline
 value class BitField<T>(internal val value: ULong = 0UL) where T : Enum<T> {
 
@@ -91,6 +90,7 @@ value class BitField<T>(internal val value: ULong = 0UL) where T : Enum<T> {
    * @param other BitField containing the flag(s) to set
    * @return New BitField with the flag(s) set
    */
+
   fun setFlag(other: BitField<T>): BitField<T> {
     return BitField(value or other.value)
   }

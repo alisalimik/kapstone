@@ -20,6 +20,18 @@ kotlin {
 
     wasmJsMain.dependencies { implementation(libs.kotlin.stdlib.wasm) }
 
+    @OptIn(org.jetbrains.kotlin.gradle.ExperimentalWasmDsl::class)
+    wasmJs {
+        browser {
+            testTask {
+                useKarma {
+                    useChromeHeadless()
+                    useConfigDirectory(project.file("karma.config.d"))
+                }
+            }
+        }
+    }
+
     androidDeviceTest.dependencies {
       implementation(libs.androidx.test.junit)
       implementation(libs.androidx.test.espresso)

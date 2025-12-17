@@ -9,24 +9,31 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinNativeCompile
 
 fun Project.patchWASITestRunner() {
     val wasmResourcesDir = file("src/wasmWasiMain/resources")
+    val buildDirectory = layout.buildDirectory
+    val projectName = name
 
     tasks.named("wasmWasiNodeTest").configure {
         dependsOn("wasmWasiProcessResources")
 
         doFirst {
-            val outDir = layout.buildDirectory
+            val outDir = buildDirectory
                 .dir("compileSync/wasmWasi/test/testDevelopmentExecutable/kotlin")
                 .get().asFile
 
             if (wasmResourcesDir.exists()) {
-                copy {
-                    from(wasmResourcesDir)
-                    into(outDir)
+                wasmResourcesDir.walkTopDown().forEach { source ->
+                    val relative = source.relativeTo(wasmResourcesDir)
+                    val target = outDir.resolve(relative)
+                    if (source.isDirectory) {
+                        target.mkdirs()
+                    } else {
+                        source.copyTo(target, overwrite = true)
+                    }
                 }
             }
 
-            val runner = outDir.resolve("${project.name}-capstone-test.mjs")
-            if (runner.exists()) {
+            val runner = outDir.listFiles()?.firstOrNull { it.name.endsWith("-test.mjs") }
+            if (runner != null && runner.exists()) {
                 var text = runner.readText()
                 if (!text.contains("capstone-bridge.mjs")) {
                     text = "import * as CapstoneBridge from './capstone-bridge.mjs';\n$text"

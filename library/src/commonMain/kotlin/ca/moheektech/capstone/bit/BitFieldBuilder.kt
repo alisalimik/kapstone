@@ -1,6 +1,7 @@
 package ca.moheektech.capstone.bit
 
 import ca.moheektech.capstone.internal.ExportedApi
+import kotlin.js.JsName
 
 /** Builder class for constructing BitFields fluently. */
 @ExportedApi
@@ -9,6 +10,7 @@ class BitFieldBuilder<T : Enum<T>> {
 
   fun set(flag: T): BitFieldBuilder<T> = apply { bitField = bitField.setFlag(flag) }
 
+  @JsName("setArray")
   fun set(vararg flags: T): BitFieldBuilder<T> = apply {
     flags.forEach { bitField = bitField.setFlag(it) }
   }

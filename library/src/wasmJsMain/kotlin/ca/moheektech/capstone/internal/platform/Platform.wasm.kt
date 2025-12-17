@@ -7,36 +7,25 @@ import kotlin.js.JsNumber
 import kotlin.js.Promise
 
 internal actual suspend fun loadCapstoneModule(): Promise<CapstoneModuleInstance> {
-  println("DEBUG: loadCapstoneModule called")
   ensureCapstoneLoaded()
-  println("DEBUG: ensureCapstoneLoaded returned")
-  val res = capstoneModule()
-  println("DEBUG: capstoneModule() returned: " + res)
-  return res
+  return capstoneModule()
 }
 
 private fun ensureCapstoneLoaded(): Unit =
     js(
         """{
-    console.log("DEBUG: inside ensureCapstoneLoaded JS");
     if (typeof CapstoneModule === 'undefined') {
-        console.log("DEBUG: CapstoneModule is undefined, trying require");
         if (typeof require !== 'undefined') {
             try {
                 const module = require('./capstone.js');
-                console.log("DEBUG: require result:", module);
                 if (module) {
                      if (typeof global !== 'undefined') global.CapstoneModule = module.CapstoneModule || module;
                      if (typeof window !== 'undefined') window.CapstoneModule = module.CapstoneModule || module;
                 }
             } catch (e) {
-                console.error("Failed to load capstone.js via require: " + e);
+                // Ignore
             }
-        } else {
-             console.log("DEBUG: require is undefined");
         }
-    } else {
-        console.log("DEBUG: CapstoneModule is already defined");
     }
 }""")
 

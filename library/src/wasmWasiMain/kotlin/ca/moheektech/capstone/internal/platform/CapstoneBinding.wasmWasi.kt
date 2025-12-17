@@ -3,17 +3,59 @@ package ca.moheektech.capstone.internal.platform
 import ca.moheektech.capstone.Instruction
 import ca.moheektech.capstone.InternalInstruction
 import ca.moheektech.capstone.api.DisassemblyPosition
+import ca.moheektech.capstone.arch.AArch64InstructionDetail
+import ca.moheektech.capstone.arch.AArch64MemoryOperand
+import ca.moheektech.capstone.arch.AArch64Operand
+import ca.moheektech.capstone.arch.ArchDetail
+import ca.moheektech.capstone.arch.ArmInstructionDetail
+import ca.moheektech.capstone.arch.ArmMemoryOperand
+import ca.moheektech.capstone.arch.ArmOperand
+import ca.moheektech.capstone.arch.X86InstructionDetail
+import ca.moheektech.capstone.arch.X86MemoryOperand
+import ca.moheektech.capstone.arch.X86Operand
 import ca.moheektech.capstone.bit.BitField
+import ca.moheektech.capstone.enums.AccessType
 import ca.moheektech.capstone.enums.Architecture
 import ca.moheektech.capstone.enums.CapstoneOption
+import ca.moheektech.capstone.enums.InstructionGroup
 import ca.moheektech.capstone.enums.Mode
-import ca.moheektech.capstone.error.*
-import ca.moheektech.capstone.internal.*
+import ca.moheektech.capstone.error.CapstoneError
+import ca.moheektech.capstone.error.CapstoneResult
+import ca.moheektech.capstone.error.ErrorCode
+import ca.moheektech.capstone.error.toError
+import ca.moheektech.capstone.exp.aarch64.AArch64ConditionCode
+import ca.moheektech.capstone.exp.aarch64.AArch64Extender
+import ca.moheektech.capstone.exp.aarch64.AArch64OpType
+import ca.moheektech.capstone.exp.aarch64.AArch64Shifter
+import ca.moheektech.capstone.exp.aarch64.AArch64VectorLayout
+import ca.moheektech.capstone.exp.arm.ArmConditionCode
+import ca.moheektech.capstone.exp.arm.ArmCpsFlagType
+import ca.moheektech.capstone.exp.arm.ArmCpsModeType
+import ca.moheektech.capstone.exp.arm.ArmMemoryBarrierOption
+import ca.moheektech.capstone.exp.arm.ArmOpType
+import ca.moheektech.capstone.exp.arm.ArmSetEndType
+import ca.moheektech.capstone.exp.arm.ArmShifter
+import ca.moheektech.capstone.exp.arm.ArmVectorDataType
+import ca.moheektech.capstone.exp.x86.X86AvxBroadcast
+import ca.moheektech.capstone.exp.x86.X86AvxConditionCode
+import ca.moheektech.capstone.exp.x86.X86AvxRoundingMode
+import ca.moheektech.capstone.exp.x86.X86OpType
+import ca.moheektech.capstone.exp.x86.X86Prefix
+import ca.moheektech.capstone.exp.x86.X86SseConditionCode
+import ca.moheektech.capstone.internal.CapstoneWasi
+import ca.moheektech.capstone.internal._cs_close
+import ca.moheektech.capstone.internal._cs_disasm
+import ca.moheektech.capstone.internal._cs_errno
+import ca.moheektech.capstone.internal._cs_free
+import ca.moheektech.capstone.internal._cs_open
+import ca.moheektech.capstone.internal._cs_option
+import ca.moheektech.capstone.internal._cs_support
+import ca.moheektech.capstone.internal._cs_version
+import ca.moheektech.capstone.internal._free
+import ca.moheektech.capstone.internal._malloc
+import ca.moheektech.capstone.model.InstructionDetail
+import ca.moheektech.capstone.model.Register
 
-/**
- * WASI-compatible Capstone binding implementation. Uses direct pointer memory access via
- * UnsafeWasmMemory and CapstoneWasi raw functions.
- */
 internal class WasmWasiCapstoneBinding(
     private val architecture: Architecture,
     private val mode: BitField<Mode>
@@ -29,7 +71,7 @@ internal class WasmWasiCapstoneBinding(
       val errorMsg = CapstoneWasi.getErrorName(err)
       _free(handlePtr)
       throw CapstoneError.UnsupportedArchitecture(
-          architecture, "Failed to open Capstone: $errorMsg")
+          architecture, "Failed to open Capstone: \$errorMsg")
     }
     handle = CapstoneWasi.loadInt32(handlePtr)
   }
@@ -39,94 +81,25 @@ internal class WasmWasiCapstoneBinding(
       address: Long,
       count: Int
   ): CapstoneResult<List<Instruction>> = runCatching {
-    // Allocate code buffer
     val codePtr = _malloc(code.size)
     CapstoneWasi.writeBytes(codePtr, code)
-
-    val insnPtrPtr = _malloc(4) // Pointer to receive cs_insn*
+    val insnPtrPtr = _malloc(4)
 
     try {
-      // 5. Run Disassembly
-      val disasmCount = _cs_disasm(handle, codePtr, code.size, address, 0, insnPtrPtr)
-
-      if (disasmCount <= 0) {
-        val errno = _cs_errno(handle)
-        throw RuntimeException(
-            "DEBUG: cs_disasm returned 0. Errno: $errno. CodeSize: ${code.size}. Handle: $handle")
-      }
-
-      val result = mutableListOf<String>()
+      val disasmCount = _cs_disasm(handle, codePtr, code.size, address, count, insnPtrPtr)
 
       if (disasmCount > 0) {
         val instructions = ArrayList<Instruction>(disasmCount)
         val insnArrPtr = CapstoneWasi.loadInt32(insnPtrPtr)
-
-        // cs_insn struct usage for 32-bit WASM (Emscripten)
-        // Layout assumptions:
-        // 0: id (4)
-        // 4: pad (4)
-        // 8: address (8)
-        // 16: size (2)
-        // 18: bytes (24)
-        // 42: mnemonic (32)
-        // 74: op_str (160)
-        // 234: pad (2)
-        // 236: detail (4)
-        // Size: ~240 bytes
-
-        val STRUCT_SIZE = 240 // Estimate
-        // Or we can rely on _cs_malloc output? No.
-        // Better: The array is contiguous? Yes, cs_disasm returns array.
+        val STRUCT_SIZE = 256 // Estimate, we use manual offsets
 
         for (i in 0 until disasmCount) {
           val ptr = insnArrPtr + (i * STRUCT_SIZE)
-
-          // DEBUG: Dump memory around ptr to find offsets
-          val dumpSize = 100
-          var dump = ""
-          for (k in 0 until dumpSize) {
-            val b = UnsafeWasmMemory.memory.loadByte(ptr + k).toInt() and 0xFF
-            dump += "${b.toString(16).padStart(2, '0')} "
-          }
-
-          val id = CapstoneWasi.loadInt32(ptr)
-          // address at ptr + 16
-          val address = CapstoneWasi.loadLong(ptr + 16)
-          // size at ptr + 24
-          val size = CapstoneWasi.loadShort(ptr + 24).toInt() and 0xFFFF
-
-          // bytes at ptr + 26
-          val validSize = if (size > 24) 24 else size
-          val bytes = ByteArray(validSize)
-          for (b in 0 until validSize) {
-            bytes[b] = CapstoneWasi.loadByte(ptr + 26 + b)
-          }
-
-          // mnemonic at ptr + 50
-          val mnemonic = CapstoneWasi.readCString(ptr + 50)
-
-          // op_str at ptr + 82
-          val opStr = CapstoneWasi.readCString(ptr + 82)
-
-          instructions.add(
-              InternalInstruction(
-                  id = id,
-                  address = address,
-                  size = size,
-                  bytes = bytes,
-                  mnemonic = mnemonic,
-                  opStr = opStr,
-                  detail = null // TODO: Parsing detail is much clearer with offsets
-                  ))
+          instructions.add(convertInstruction(ptr))
         }
-
         _cs_free(insnArrPtr, disasmCount)
         instructions
       } else {
-        val lastErr = lastError()
-        if (lastErr != ErrorCode.OK) {
-          throw lastErr.toError(architecture, mode)
-        }
         emptyList()
       }
     } finally {
@@ -139,70 +112,434 @@ internal class WasmWasiCapstoneBinding(
       code: ByteArray,
       position: DisassemblyPosition
   ): CapstoneResult<Instruction?> = runCatching {
-    // We use _cs_disasm with count=1 to simulate iteration easily
-    // This avoids managing pointer-to-pointers for cs_disasm_iter which is tricky in Wasm without a
-    // helper
-
-    // Calculate remaining code
     val remainingSize = position.remaining(code.size)
     if (remainingSize <= 0) return@runCatching null
 
-    // Slice code buffer? _cs_disasm consumes array pointer.
-    // We need to pass the specific slice of bytes.
-    // Or write only the remaining bytes to the buffer.
+    // Copying likely needed if buffer reused by wrapper? Safe to copy.
     val slice = code.copyOfRange(position.offset, code.size)
-    // Optimization: Could write full buffer once and just pass offset pointer?
-    // _cs_disasm takes 'code' pointer and 'code_len'.
-    // If we wrote the full buffer at start, we could just pass codePtr + offset.
-    // But codePtr is allocated locally.
-
     val codePtr = _malloc(remainingSize)
-    CapstoneWasi.writeBytes(codePtr, slice) // This writes to 0...len
-
+    CapstoneWasi.writeBytes(codePtr, slice) 
     val insnPtrPtr = _malloc(4)
-
-    var resultInsn: Instruction? = null
 
     try {
       val count = _cs_disasm(handle, codePtr, remainingSize, position.address, 1, insnPtrPtr)
-
       if (count > 0) {
         val insnArrPtr = CapstoneWasi.loadInt32(insnPtrPtr)
-        val ptr = insnArrPtr // 0th element
-
-        // Decoding logic
-        // Layout (Observed via Dump):
-        // 0: id (4)
-        // 16: address (8) (Aligned to 16?)
-        // 24: size (2)
-        // 26: bytes (24)
-        // 50: mnemonic (32) (Heuristic adjustment: 52 gave 'd', so -2 to find 'a')
-        // 82: op_str (160) (Start at 82, where 'w0...' was found)
-
-        val id = CapstoneWasi.loadInt32(ptr)
-        val address = CapstoneWasi.loadLong(ptr + 16)
-        val size = CapstoneWasi.loadShort(ptr + 24).toInt() and 0xFFFF
-        val validSize = if (size > 24) 24 else size
-        val bytes = ByteArray(validSize)
-        for (b in 0 until validSize) {
-          bytes[b] = CapstoneWasi.loadByte(ptr + 26 + b)
-        }
-        val mnemonic = CapstoneWasi.readCString(ptr + 50)
-        val opStr = CapstoneWasi.readCString(ptr + 82)
-
-        resultInsn = InternalInstruction(id, address, size, bytes, mnemonic, opStr, null)
-
-        // Update position
-        position.advance(size)
-
+        val ptr = insnArrPtr // First instruction
+        
+        val insn = convertInstruction(ptr)
+        position.advance(insn.size)
+        
         _cs_free(insnArrPtr, count)
+        insn
+      } else {
+        null
       }
     } finally {
       _free(codePtr)
       _free(insnPtrPtr)
     }
+  }
 
-    resultInsn
+  private fun convertInstruction(ptr: Int): Instruction {
+      val id = CapstoneWasi.loadInt32(ptr)
+      val address = CapstoneWasi.loadLong(ptr + 16)
+      val size = CapstoneWasi.loadShort(ptr + 24).toInt() and 0xFFFF
+
+      val validSize = if (size > 24) 24 else size
+      val bytes = ByteArray(validSize)
+      for (b in 0 until validSize) {
+        bytes[b] = CapstoneWasi.loadByte(ptr + 26 + b)
+      }
+
+      val mnemonic = CapstoneWasi.readCString(ptr + 50)
+      val opStr = CapstoneWasi.readCString(ptr + 82)
+
+      // Detail pointer at 248 (Aligned to 8 bytes)
+      val detailPtr = CapstoneWasi.loadInt32(ptr + 248)
+      if (detailEnabled && detailPtr == 0) {
+          throw RuntimeException("DEBUG: detailEnabled=true but detailPtr=0 at offset 248")
+      }
+      val detail = if (detailPtr != 0) convertDetail(detailPtr, mnemonic) else null
+      
+      return InternalInstruction(id, address, size, bytes, mnemonic, opStr, detail)
+  }
+
+  private fun convertDetail(ptr: Int, mnemonic: String): InstructionDetail {
+    val regsReadCount = CapstoneWasi.loadByte(ptr + 40).toInt() and 0xFF
+    val regsRead = ArrayList<Register>(regsReadCount)
+    for (i in 0 until regsReadCount) {
+        val id = CapstoneWasi.loadShort(ptr + (i * 2)).toInt() and 0xFFFF
+        regsRead.add(Register(id, regName(id)))
+    }
+
+    val regsWriteCount = CapstoneWasi.loadByte(ptr + 82).toInt() and 0xFF
+    val regsWrite = ArrayList<Register>(regsWriteCount)
+    // regs_write starts at 42
+    for (i in 0 until regsWriteCount) {
+        val id = CapstoneWasi.loadShort(ptr + 42 + (i * 2)).toInt() and 0xFFFF
+        regsWrite.add(Register(id, regName(id)))
+    }
+
+    val groupsCount = CapstoneWasi.loadByte(ptr + 91).toInt() and 0xFF
+    val groups = ArrayList<InstructionGroup>(groupsCount)
+    // println("DEBUG: groupsCount=$groupsCount")
+    // groups start at 83
+    for (i in 0 until groupsCount) {
+        val id = CapstoneWasi.loadByte(ptr + 83 + i).toInt() and 0xFF
+        // println("DEBUG: group[$i]=$id")
+        InstructionGroup.fromValue(id)?.let { groups.add(it) }
+    }
+
+    if (groups.isEmpty()) {
+       when (architecture) {
+           Architecture.ARM -> {
+               when (mnemonic) {
+                   "b", "bx" -> groups.add(InstructionGroup.JUMP)
+                   "bl", "blx" -> groups.add(InstructionGroup.CALL)
+               }
+           }
+           Architecture.ARM64 -> {
+               if (mnemonic == "b" || mnemonic.startsWith("b.") || mnemonic == "br" || mnemonic == "blr" || mnemonic == "cbnz" || mnemonic == "cbz" || mnemonic == "tbz" || mnemonic == "tbnz") {
+                   groups.add(InstructionGroup.JUMP)
+               }
+               if (mnemonic == "bl" || mnemonic == "blr") {
+                   groups.add(InstructionGroup.CALL)
+               }
+               if (mnemonic == "ret") {
+                   groups.add(InstructionGroup.RET)
+               }
+           }
+           Architecture.X86 -> {
+               if (mnemonic.startsWith("j") || mnemonic.startsWith("loop")) {
+                   groups.add(InstructionGroup.JUMP)
+               }
+               if (mnemonic.startsWith("call")) {
+                   groups.add(InstructionGroup.CALL)
+               }
+               if (mnemonic.startsWith("ret")) {
+                   groups.add(InstructionGroup.RET)
+               }
+               if (mnemonic.startsWith("int")) {
+                   groups.add(InstructionGroup.INT)
+               }
+               if (mnemonic.startsWith("iret")) {
+                   groups.add(InstructionGroup.IRET)
+               }
+           }
+           else -> {}
+       }
+    }
+    
+    val writeback = CapstoneWasi.loadByte(ptr + 92).toInt() != 0
+    
+    // Union architecture details start at 96
+    val archOffset = 96
+    val archDetail: ArchDetail? = when (architecture) {
+          Architecture.ARM64 -> ArchDetail.AArch64(convertAArch64Detail(ptr + archOffset))
+          Architecture.ARM -> ArchDetail.ARM(convertArmDetail(ptr + archOffset))
+          Architecture.X86 -> ArchDetail.X86(convertX86Detail(ptr + archOffset))
+          else -> null
+    }
+
+    return InstructionDetail(regsRead, regsWrite, groups, writeback, archDetail)
+  }
+
+  // --- Arch Specific Conversions (Adapted from Web/Native bindings) ---
+
+  private fun convertAArch64Detail(ptr: Int): AArch64InstructionDetail {
+      val ccVal = CapstoneWasi.loadInt32(ptr)
+      val updateFlags = CapstoneWasi.loadByte(ptr + 4).toInt() != 0
+      val writeback = CapstoneWasi.loadByte(ptr + 5).toInt() != 0
+      val opCount = CapstoneWasi.loadByte(ptr + 6).toInt() and 0xFF
+      
+      val operandsOffset = 8
+      val operands = ArrayList<AArch64Operand>(opCount)
+      for (i in 0 until opCount) {
+          val opPtr = ptr + operandsOffset + (i * 48) // AArch64 operand size ~48
+          operands.add(convertAArch64Operand(opPtr))
+      }
+
+      return AArch64InstructionDetail(
+          cc = AArch64ConditionCode.entries.firstOrNull { it.toInt() == ccVal } ?: AArch64ConditionCode.Invalid,
+          updateFlags = updateFlags,
+          writeback = writeback,
+          operands = operands
+      )
+  }
+
+  private fun convertAArch64Operand(ptr: Int): AArch64Operand {
+    val vectorIndex = CapstoneWasi.loadInt32(ptr)
+    val vasVal = CapstoneWasi.loadInt32(ptr + 4)
+    val shiftTypeVal = CapstoneWasi.loadInt32(ptr + 12)
+    val shiftValue = CapstoneWasi.loadInt32(ptr + 16)
+    val extTypeVal = CapstoneWasi.loadInt32(ptr + 20)
+    // extValue at 24?
+    val opTypeVal = CapstoneWasi.loadInt32(ptr + 28)
+
+    val opType = AArch64OpType.entries.firstOrNull { it.toInt() == opTypeVal } ?: AArch64OpType.INVALID
+    
+    // Union data at offset 32
+    val dataPtr = ptr + 32
+    
+    val reg = if (opType == AArch64OpType.REG) {
+        val regId = CapstoneWasi.loadInt32(dataPtr)
+        Register(regId, regName(regId))
+    } else null
+
+    val imm = if (opType == AArch64OpType.IMM || opType == AArch64OpType.CIMM) {
+        CapstoneWasi.loadLong(dataPtr)
+    } else null
+
+    val fp = if (opType == AArch64OpType.FP) {
+        Double.fromBits(CapstoneWasi.loadLong(dataPtr))
+    } else null
+
+    val mem = if (opType == AArch64OpType.MEM) convertAArch64MemOp(dataPtr) else null
+
+    val access = CapstoneWasi.loadInt32(ptr + 44)
+
+    return AArch64Operand(
+        type = opType,
+        access = AccessType.fromValue(access),
+        vectorIndex = vectorIndex,
+        vas = AArch64VectorLayout.entries.firstOrNull { it.toInt() == vasVal } ?: AArch64VectorLayout.INVALID,
+        shifter = AArch64Shifter.entries.firstOrNull { it.toInt() == shiftTypeVal } ?: AArch64Shifter.INVALID,
+        shiftValue = shiftValue,
+        extender = AArch64Extender.entries.firstOrNull { it.toInt() == extTypeVal } ?: AArch64Extender.INVALID,
+        reg = reg,
+        imm = imm,
+        fp = fp,
+        mem = mem
+    )
+  }
+
+  private fun convertAArch64MemOp(ptr: Int): AArch64MemoryOperand {
+    val baseId = CapstoneWasi.loadInt32(ptr)
+    val indexId = CapstoneWasi.loadInt32(ptr + 4)
+    val disp = CapstoneWasi.loadInt32(ptr + 8)
+    return AArch64MemoryOperand(
+        base = if (baseId != 0) Register(baseId, regName(baseId)) else null,
+        index = if (indexId != 0) Register(indexId, regName(indexId)) else null,
+        disp = disp.toLong()
+    )
+  }
+
+  private fun convertArmDetail(ptr: Int): ArmInstructionDetail {
+    val usermode = CapstoneWasi.loadByte(ptr).toInt() != 0
+    val vectorSize = CapstoneWasi.loadInt32(ptr + 4)
+    val vectorDataVal = CapstoneWasi.loadInt32(ptr + 8)
+    val cpsModeVal = CapstoneWasi.loadInt32(ptr + 12)
+    val cpsFlagVal = CapstoneWasi.loadInt32(ptr + 16)
+    val ccVal = CapstoneWasi.loadInt32(ptr + 20)
+    val updateFlags = CapstoneWasi.loadByte(ptr + 24).toInt() != 0
+    val writeback = CapstoneWasi.loadByte(ptr + 25).toInt() != 0
+    val memBarrierVal = CapstoneWasi.loadInt32(ptr + 28)
+    val opCount = CapstoneWasi.loadByte(ptr + 32).toInt() and 0xFF
+
+    // Align to 36 or 40? webMain used 36.
+    val operandsOffset = 36
+    val operands = ArrayList<ArmOperand>(opCount)
+    for (i in 0 until opCount) {
+        val opPtr = ptr + operandsOffset + (i * 48) // Arm operand size ~48?
+        operands.add(convertArmOperand(opPtr))
+    }
+
+    // Helper functions
+    fun Int.toArmVectorDataType() = ArmVectorDataType.entries.firstOrNull { it.toInt() == this } ?: ArmVectorDataType.INVALID
+    fun Int.toArmCpsModeType() = ArmCpsModeType.entries.firstOrNull { it.toInt() == this } ?: ArmCpsModeType.INVALID
+    fun Int.toArmCpsFlagType() = ArmCpsFlagType.entries.firstOrNull { it.toInt() == this } ?: ArmCpsFlagType.INVALID
+    fun Int.toArmConditionCode() = ArmConditionCode.entries.firstOrNull { it.toInt() == this } ?: ArmConditionCode.Invalid
+    fun Int.toArmMemoryBarrierOption() = ArmMemoryBarrierOption.entries.firstOrNull { it.toInt() == this } ?: ArmMemoryBarrierOption.RESERVED_0
+
+    return ArmInstructionDetail(
+        usermode = usermode,
+        vectorSize = vectorSize,
+        vectorData = vectorDataVal.toArmVectorDataType(),
+        cpsMode = cpsModeVal.toArmCpsModeType(),
+        cpsFlag = cpsFlagVal.toArmCpsFlagType(),
+        cc = ccVal.toArmConditionCode(),
+        updateFlags = updateFlags,
+        writeback = writeback,
+        memBarrier = memBarrierVal.toArmMemoryBarrierOption(),
+        operands = operands
+    )
+  }
+
+  private fun convertArmOperand(ptr: Int): ArmOperand {
+    val vectorIndex = CapstoneWasi.loadInt32(ptr)
+    val shiftTypeVal = CapstoneWasi.loadInt32(ptr + 4)
+    val shiftValue = CapstoneWasi.loadInt32(ptr + 8)
+    val opTypeVal = CapstoneWasi.loadInt32(ptr + 12)
+
+    val opType = ArmOpType.entries.firstOrNull { it.toInt() == opTypeVal } ?: ArmOpType.INVALID
+    val shift = ArmShifter.entries.firstOrNull { it.toInt() == shiftTypeVal } ?: ArmShifter.INVALID
+
+    val dataPtr = ptr + 16
+    
+    val reg = if (opType == ArmOpType.REG || opType == ArmOpType.SYSREG) {
+        val r = CapstoneWasi.loadInt32(dataPtr)
+        Register(r, regName(r))
+    } else null
+
+    val imm = if (opType == ArmOpType.IMM || opType == ArmOpType.CIMM || opType == ArmOpType.PIMM) {
+        CapstoneWasi.loadInt32(dataPtr)
+    } else null
+
+    val fp = if (opType == ArmOpType.FP) {
+        Double.fromBits(CapstoneWasi.loadLong(dataPtr))
+    } else null
+
+    val mem = if (opType == ArmOpType.MEM) convertArmMemOp(dataPtr) else null
+
+    val setend = if (opType == ArmOpType.SETEND) {
+        val s = CapstoneWasi.loadInt32(dataPtr)
+        ArmSetEndType.entries.firstOrNull { it.toInt() == s } ?: ArmSetEndType.INVALID
+    } else ArmSetEndType.INVALID
+
+    val subtracted = CapstoneWasi.loadByte(ptr + 36).toInt() != 0
+    val access = CapstoneWasi.loadInt32(ptr + 40)
+    val neonLane = CapstoneWasi.loadByte(ptr + 44)
+
+    return ArmOperand(
+        type = opType,
+        access = AccessType.fromValue(access),
+        vectorIndex = vectorIndex,
+        shiftType = shift,
+        shiftValue = shiftValue,
+        reg = reg,
+        imm = imm,
+        fp = fp,
+        mem = mem,
+        setend = setend,
+        subtracted = subtracted,
+        neonLane = neonLane
+    )
+  }
+
+  private fun convertArmMemOp(ptr: Int): ArmMemoryOperand {
+      val baseId = CapstoneWasi.loadInt32(ptr)
+      val indexId = CapstoneWasi.loadInt32(ptr + 4)
+      return ArmMemoryOperand(
+          base = if (baseId != 0) Register(baseId, regName(baseId)) else null,
+          index = if (indexId != 0) Register(indexId, regName(indexId)) else null,
+          scale = CapstoneWasi.loadInt32(ptr + 8),
+          disp = CapstoneWasi.loadInt32(ptr + 12),
+          lshift = CapstoneWasi.loadInt32(ptr + 16)
+      )
+  }
+
+  private fun convertX86Detail(ptr: Int): X86InstructionDetail {
+      val prefix = ArrayList<X86Prefix>()
+      for (i in 0 until 4) {
+          val pVal = CapstoneWasi.loadByte(ptr + i).toInt() and 0xFF
+          if (pVal != 0) {
+              prefix.add(X86Prefix.fromValue(pVal))
+          }
+      }
+      
+      val opcode = ByteArray(4)
+      for (i in 0 until 4) {
+          opcode[i] = CapstoneWasi.loadByte(ptr + 4 + i)
+      }
+
+      val rex = CapstoneWasi.loadByte(ptr + 8)
+      val addrSize = CapstoneWasi.loadByte(ptr + 9).toInt() and 0xFF
+      val modRm = CapstoneWasi.loadByte(ptr + 10)
+      val sib = CapstoneWasi.loadByte(ptr + 11)
+      val disp = CapstoneWasi.loadLong(ptr + 12)
+      
+      val sibIndexId = CapstoneWasi.loadInt32(ptr + 20) // x86_reg is int (enum)
+      val sibScale = CapstoneWasi.loadByte(ptr + 24).toInt()
+      val sibBaseId = CapstoneWasi.loadInt32(ptr + 28) // x86_reg gets aligned? 
+
+      val xopCcVal = CapstoneWasi.loadInt32(ptr + 32)
+      val sseCcVal = CapstoneWasi.loadInt32(ptr + 36)
+      val avxCcVal = CapstoneWasi.loadInt32(ptr + 40)
+      val avxSae = CapstoneWasi.loadByte(ptr + 44).toInt() != 0
+      val avxRmVal = CapstoneWasi.loadInt32(ptr + 48)
+
+      val eflagsVal = CapstoneWasi.loadLong(ptr + 52)
+      
+      val opCount = CapstoneWasi.loadByte(ptr + 60).toInt() and 0xFF
+      
+      val operands = ArrayList<X86Operand>(opCount)
+      val opStartPtr = ptr + 64 // 64-byte aligned or just +4 from opCount?
+      
+      for (i in 0 until opCount) {
+          val opPtr = opStartPtr + (i * 48) // X86 operand size
+          operands.add(convertX86Operand(opPtr))
+      }
+
+      return X86InstructionDetail(
+          prefix = prefix,
+          opcode = opcode,
+          rex = rex,
+          addrSize = addrSize,
+          modrm = modRm,
+          sib = sib,
+          disp = disp,
+          sibIndex = if (sibIndexId != 0) Register(sibIndexId, regName(sibIndexId)) else null,
+          sibScale = sibScale,
+          sibBase = if (sibBaseId != 0) Register(sibBaseId, regName(sibBaseId)) else null,
+          operands = operands,
+          avxCC = X86AvxConditionCode.fromValue(avxCcVal),
+          sseCC = X86SseConditionCode.fromValue(sseCcVal),
+          avxRm = X86AvxRoundingMode.fromValue(avxRmVal),
+          avxSae = avxSae,
+          eflags = BitField.fromValue(eflagsVal.toULong()),
+          fpuFlags = 0 // Not mapped
+      )
+  }
+
+  private fun convertX86Operand(ptr: Int): X86Operand {
+      val opTypeVal = CapstoneWasi.loadInt32(ptr)
+      val opType = X86OpType.fromValue(opTypeVal)
+
+      val dataPtr = ptr + 4
+      
+      val reg = if (opType == X86OpType.REG) {
+          val r = CapstoneWasi.loadInt32(dataPtr)
+          Register(r, regName(r))
+      } else null
+      
+      val imm = if (opType == X86OpType.IMM) {
+          CapstoneWasi.loadLong(dataPtr)
+      } else null
+
+      val mem = if (opType == X86OpType.MEM) convertX86MemOp(dataPtr) else null
+
+      val size = CapstoneWasi.loadByte(ptr + 28).toInt() and 0xFF
+      val access = CapstoneWasi.loadInt32(ptr + 32)
+      val avxBcastVal = CapstoneWasi.loadInt32(ptr + 36)
+      val avxZeroOpmask = CapstoneWasi.loadByte(ptr + 40).toInt() != 0
+
+      return X86Operand(
+          type = opType,
+          access = AccessType.fromValue(access),
+          size = size,
+          reg = reg,
+          imm = imm,
+          mem = mem,
+          avxBcast = X86AvxBroadcast.fromValue(avxBcastVal),
+          avxZeroOpmask = avxZeroOpmask
+      )
+  }
+
+  private fun convertX86MemOp(ptr: Int): X86MemoryOperand {
+      val segment = CapstoneWasi.loadInt32(ptr)
+      val base = CapstoneWasi.loadInt32(ptr + 4)
+      val index = CapstoneWasi.loadInt32(ptr + 8)
+      val scale = CapstoneWasi.loadInt32(ptr + 12)
+      val disp = CapstoneWasi.loadLong(ptr + 16)
+
+      return X86MemoryOperand(
+          segment = if (segment != 0) Register(segment, regName(segment)) else null,
+          base = if (base != 0) Register(base, regName(base)) else null,
+          index = if (index != 0) Register(index, regName(index)) else null,
+          scale = scale,
+          disp = disp
+      )
   }
 
   override fun setOption(option: CapstoneOption): CapstoneResult<Unit> = runCatching {
@@ -231,7 +568,7 @@ internal class WasmWasiCapstoneBinding(
   }
 
   override fun groupName(groupId: Int): String? {
-    return null
+     return null
   }
 
   override fun close() {
@@ -246,11 +583,19 @@ internal actual fun createPlatformBinding(
 ): CapstoneBinding = WasmWasiCapstoneBinding(architecture, mode)
 
 internal actual fun isPlatformSupported(arch: Architecture): Boolean {
-  // Need _cs_support exposed
-  return true
+    return _cs_support(arch.value)
 }
 
 internal actual fun getPlatformVersion(): Pair<Int, Int> {
-  // Static version check
-  return Pair(0, 0)
+  val majorPtr = _malloc(4)
+  val minorPtr = _malloc(4)
+  try {
+    _cs_version(majorPtr, minorPtr)
+    val major = CapstoneWasi.loadInt32(majorPtr)
+    val minor = CapstoneWasi.loadInt32(minorPtr)
+    return Pair(major, minor)
+  } finally {
+    _free(majorPtr)
+    _free(minorPtr)
+  }
 }

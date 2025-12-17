@@ -899,7 +899,7 @@ class CapstoneTests {
   @Test
   fun testX86_64Lea() = runTest {
     initializeCapstone()
-    CapstoneEngine
+
     // lea rax, [rbx+8]
     val code = byteArrayOf(0x48, 0x8D.toByte(), 0x43, 0x08)
 
