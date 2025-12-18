@@ -168,6 +168,15 @@ fun Project.registerCapstoneBuildTasks() {
             logger.info("Configured preBuild to depend on buildCapstoneAndroid")
         }
 
+        // Make Android compilation tasks depend on Android Capstone libraries
+        if (name == "compileAndroidMain" ||
+            name == "compileDebugAndroidMain" ||
+            name == "compileReleaseAndroidMain" ||
+            name.matches(Regex("compile.*AndroidMain"))) {
+            dependsOn("buildCapstoneAndroid")
+            logger.info("✓ Configured $name to depend on buildCapstoneAndroid")
+        }
+
         // Make Android merge JNI tasks depend on Android Capstone libraries
         if (name.contains("mergeJniLibFolders", ignoreCase = true) ||
             name.contains("mergeNativeLibs", ignoreCase = true)) {

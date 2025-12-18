@@ -579,12 +579,44 @@ jobs:
           echo "y" | sdkmanager "build-tools;36.1.0"
           echo "y" | sdkmanager "platforms;android-29"
           echo "y" | sdkmanager "platforms;android-36"
+          echo "y" | sdkmanager "ndk;29.0.14206865"
+          echo "y" | sdkmanager "cmake;3.22.1"
 
       - name: Set Android environment variables
         run: |
           echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
           echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
+          echo "ANDROID_NDK_ROOT=$ANDROID_SDK_ROOT/ndk/29.0.14206865" >> $GITHUB_ENV
           echo "$ANDROID_SDK_ROOT/platform-tools" >> $GITHUB_PATH
+          echo "$ANDROID_SDK_ROOT/ndk/29.0.14206865/toolchains/llvm/prebuilt/linux-x86_64/bin" >> $GITHUB_PATH
+
+      - name: Verify Android SDK installation
+        run: |
+          echo "=== Android SDK Verification ==="
+          echo "ANDROID_HOME: $ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT: $ANDROID_SDK_ROOT"
+          echo "ANDROID_NDK_ROOT: $ANDROID_NDK_ROOT"
+          echo ""
+          echo "=== SDK Packages ==="
+          sdkmanager --list_installed
+          echo ""
+          echo "=== NDK ==="
+          ls -la "$ANDROID_SDK_ROOT/ndk/" || true
+          echo ""
+          echo "=== CMake ==="
+          cmake --version || true
+          echo "==================================="
+
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build
+
+      - name: Get build tool versions
+        id: build-tools
+        run: |
+          echo "cmake_version=$(cmake --version | head -n1 | cut -d' ' -f3)" >> $GITHUB_OUTPUT
+          echo "ndk_version=$(basename $ANDROID_NDK_ROOT)" >> $GITHUB_OUTPUT
 
       - name: Cache Capstone Android builds
         id: cache-capstone
@@ -603,7 +635,9 @@ jobs:
 
       - name: Build Capstone for Android NDK
         if: steps.cache-capstone.outputs.cache-hit != 'true'
-        run: ./gradlew buildCapstoneAndroid --info --configuration-cache
+        run: |
+          echo "=== Building Capstone for Android NDK ==="
+          ./gradlew buildCapstoneAndroidArm64Shared buildCapstoneAndroidArm32Shared buildCapstoneAndroidX64Shared buildCapstoneAndroidX86Shared --info --stacktrace
 
       - name: Verify Capstone Android build
         run: |
@@ -634,6 +668,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-konan-android-
             ${{ runner.os }}-konan-
+
+      - name: Build Android target
+        run: |
+          echo "=== Building Android target ==="
+          ./gradlew compileAndroidMain --info --stacktrace
 
       - name: Enable KVM
         run: |
