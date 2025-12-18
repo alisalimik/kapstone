@@ -725,10 +725,12 @@ jobs:
           arch: x86_64
           target: google_apis
           force-avd-creation: false
+          emulator-boot-timeout: 900
           disk-size: 4096M
           heap-size: 512M
           ram-size: 2048M
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -partition-size 4096
+          cores: 2
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-load
           disable-animations: false
           script: echo "Generated AVD snapshot for caching."
 
@@ -739,10 +741,12 @@ jobs:
           arch: x86_64
           target: google_apis
           force-avd-creation: false
+          emulator-boot-timeout: 900
           disk-size: 4096M
           heap-size: 512M
           ram-size: 2048M
-          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -partition-size 4096
+          cores: 2
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save
           disable-animations: true
           script: ./gradlew connectedCheck --continue --stacktrace
 

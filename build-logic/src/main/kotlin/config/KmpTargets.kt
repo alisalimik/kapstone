@@ -4,6 +4,8 @@ package config
 
 import com.android.build.api.dsl.androidLibrary
 import org.gradle.api.Project
+import org.gradle.kotlin.dsl.get
+import org.gradle.kotlin.dsl.invoke
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import platform.Host
 import platform.toolchains
@@ -33,7 +35,13 @@ fun KotlinMultiplatformExtension.configureTargets() {
             freeCompilerArgs.add("-XXLanguage:+JsAllowLongInExportedDeclarations")
         }
         useEsModules()
-        generateTypeScriptDefinitions()
+        compilations.all {
+            compileTaskProvider.configure {
+                this@configure.compilerOptions {
+                    freeCompilerArgs.add("-Xgenerate-dts=${!this@all.name.lowercase().contains("test")}")
+                }
+            }
+        }
         binaries.library()
         configurePublishing()
     }
