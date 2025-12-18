@@ -291,7 +291,7 @@ jobs:
         run: ./gradlew buildCapstoneAll --stacktrace
 
       - name: Build all Kotlin targets
-        run: ./gradlew build -x test --stacktrace
+        run: ./gradlew build --stacktrace
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v6
