@@ -19,9 +19,9 @@ kotlin {
 
 gradlePlugin {
     plugins {
-        register("kapstone-project") {
-            id = "kapstone.project"
-            implementationClass = "KapstoneProjectPlugin"
+        register("kotstone-project") {
+            id = "kotstone.project"
+            implementationClass = "KotstoneProjectPlugin"
         }
     }
 }

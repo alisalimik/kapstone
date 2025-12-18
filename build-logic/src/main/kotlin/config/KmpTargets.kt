@@ -16,11 +16,11 @@ fun KotlinMultiplatformExtension.configureTargets() {
         namespace = getNamespace()
         compileSdk = 36
         minSdk = 21
+        buildToolsVersion = "36.1.0"
 
         withDeviceTest {
             instrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         }
-
     }
 
     js(IR) {

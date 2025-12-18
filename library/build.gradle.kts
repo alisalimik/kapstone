@@ -1,11 +1,11 @@
-plugins { alias(libs.plugins.kapstone.project) }
+plugins { alias(libs.plugins.kotstone.project) }
 
 kotlin {
   androidComponents.onVariants {
     it.sources.jniLibs?.addStaticSourceDirectory("interop/linked-android")
   }
 
-  sourceSets {
+    sourceSets {
     commonMain.dependencies {
       implementation(libs.kotlin.stdlib)
       implementation(libs.kotlinx.coroutines.core)

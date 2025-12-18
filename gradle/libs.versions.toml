@@ -55,4 +55,4 @@ android-gradle = { group = "com.android.kotlin.multiplatform.library", name = "c
 maven-publish = { group = "com.vanniktech", name = "gradle-maven-publish-plugin", version.ref = "publish" }
 
 [plugins]
-kapstone-project = { id = "kapstone.project" }
+kotstone-project = { id = "kotstone.project" }

@@ -3,4 +3,4 @@ headers = platform.h windowsce/stdint.h windowsce/intrin.h capstone/capstone.h c
 headerFilter = capstone/*
 
 staticLibraries = libcapstone.a
-#noStringConversion =
+linkerOpts.android_arm64 = "-Wl,-z,max-page-size=16384" "-Wl,-z,common-page-size=16384"

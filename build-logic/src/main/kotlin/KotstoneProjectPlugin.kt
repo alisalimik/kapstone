@@ -17,7 +17,7 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 
-class KapstoneProjectPlugin : Plugin<Project> {
+class KotstoneProjectPlugin : Plugin<Project> {
     override fun apply(project: Project) = with(project) {
         plugins.apply("org.jetbrains.kotlin.multiplatform")
         plugins.apply("com.android.kotlin.multiplatform.library")
