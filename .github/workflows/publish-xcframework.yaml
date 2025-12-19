@@ -55,11 +55,11 @@ jobs:
       - name: Build XCFramework
         run: |
           echo "Building XCFramework for all Apple platforms..."
-          ./gradlew :library:assembleKapstoneKitReleaseXCFramework --no-daemon --stacktrace
+          ./gradlew :library:assembleKotstoneKitReleaseXCFramework --no-daemon --stacktrace
 
       - name: Verify XCFramework
         run: |
-          XCFRAMEWORK_PATH="library/build/xcframeworks/release/KapstoneKit.xcframework"
+          XCFRAMEWORK_PATH="library/build/xcframeworks/release/KotstoneKit.xcframework"
           if [ ! -d "$XCFRAMEWORK_PATH" ]; then
             echo "Error: XCFramework not found at $XCFRAMEWORK_PATH"
             exit 1
@@ -71,12 +71,12 @@ jobs:
       - name: Create XCFramework ZIP
         id: zip
         run: |
-          XCFRAMEWORK_PATH="library/build/xcframeworks/release/KapstoneKit.xcframework"
-          ZIP_NAME="KapstoneKit.xcframework.zip"
+          XCFRAMEWORK_PATH="library/build/xcframeworks/release/KotstoneKit.xcframework"
+          ZIP_NAME="KotstoneKit.xcframework.zip"
 
           # Create zip from the parent directory to preserve structure
           cd library/build/xcframeworks/release
-          zip -r "../../../../$ZIP_NAME" KapstoneKit.xcframework
+          zip -r "../../../../$ZIP_NAME" KotstoneKit.xcframework
           cd ../../../../
 
           echo "zip_path=$ZIP_NAME" >> $GITHUB_OUTPUT
@@ -116,23 +116,23 @@ jobs:
           echo "url=$ASSET_URL" >> $GITHUB_OUTPUT
           echo "Asset URL: $ASSET_URL"
 
-      - name: Update Kapstone.podspec
+      - name: Update Kotstone.podspec
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           ASSET_URL="${{ steps.asset_url.outputs.url }}"
           CHECKSUM="${{ steps.checksum.outputs.checksum }}"
 
           # Update version
-          sed -i '' "s/s.version[[:space:]]*=.*/s.version          = '$VERSION'/" Kapstone.podspec
+          sed -i '' "s/s.version[[:space:]]*=.*/s.version          = '$VERSION'/" Kotstone.podspec
 
           # Update source URL
-          sed -i '' "s|s.source[[:space:]]*=.*|s.source           = { :http => '$ASSET_URL' }|" Kapstone.podspec
+          sed -i '' "s|s.source[[:space:]]*=.*|s.source           = { :http => '$ASSET_URL' }|" Kotstone.podspec
 
-          # Update vendored_frameworks to use KapstoneKit.xcframework
-          sed -i '' "s/s.vendored_frameworks[[:space:]]*=.*/s.vendored_frameworks = 'KapstoneKit.xcframework'/" Kapstone.podspec
+          # Update vendored_frameworks to use KotstoneKit.xcframework
+          sed -i '' "s/s.vendored_frameworks[[:space:]]*=.*/s.vendored_frameworks = 'KotstoneKit.xcframework'/" Kotstone.podspec
 
-          echo "Updated Kapstone.podspec:"
-          cat Kapstone.podspec
+          echo "Updated Kotstone.podspec:"
+          cat Kotstone.podspec
 
       - name: Update Package.swift
         run: |
@@ -154,7 +154,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add Kapstone.podspec Package.swift
+          git add Kotstone.podspec Package.swift
           git commit -m "Update XCFramework specs for version ${{ steps.version.outputs.version }}"
           git push origin HEAD:main
 
@@ -175,12 +175,12 @@ jobs:
           fi
 
           # Validate podspec
-          echo "Validating Kapstone.podspec..."
-          pod spec lint Kapstone.podspec --allow-warnings
+          echo "Validating Kotstone.podspec..."
+          pod spec lint Kotstone.podspec --allow-warnings
 
           # Publish to trunk
           echo "Publishing to CocoaPods trunk..."
-          pod trunk push Kapstone.podspec --allow-warnings
+          pod trunk push Kotstone.podspec --allow-warnings
 
           echo "Successfully published to CocoaPods!"
 
@@ -194,7 +194,7 @@ jobs:
           echo "**Checksum:** \`${{ steps.checksum.outputs.checksum }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Updated Files" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Kapstone.podspec" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Kotstone.podspec" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ Package.swift" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Distribution" >> $GITHUB_STEP_SUMMARY
