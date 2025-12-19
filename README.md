@@ -11,19 +11,19 @@
 
 #### Kotlin DSL
 ```kotlin
-implementation("ca.moheektech:kapstone:1.0.0-alpha01")
+implementation("ir.alisalimik.kotstone:library:1.0.0-alpha01")
 ```
 
 #### Groovy DSL
 ```groovy
-implementation 'ca.moheektech:kapstone:1.0.0-alpha01'
+implementation 'ir.alisalimik.kotstone:library:1.0.0-alpha01'
 ```
 
 ### Maven
 ```xml
 <dependency>
-    <groupId>ca.moheektech</groupId>
-    <artifactId>kapstone-jvm</artifactId>
+    <groupId>ir.alisalimik.kotstone</groupId>
+    <artifactId>library-jvm</artifactId>
     <version>1.0.0-alpha01</version>
 </dependency>
 ```
