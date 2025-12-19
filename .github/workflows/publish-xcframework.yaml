@@ -12,8 +12,16 @@ on:
         required: true
         type: string
 
+# Cancel previous runs if a new one is triggered
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: write  # Required for creating releases and pushing commits
+
+env:
+  GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.parallel=true -Dorg.gradle.jvmargs="-Xmx4g"
 
 jobs:
   publish-xcframework:
@@ -24,6 +32,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
         with:
+          submodules: recursive
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -37,6 +46,81 @@ jobs:
         uses: gradle/actions/setup-gradle@v5
         with:
           cache-read-only: false
+
+      - name: Install build dependencies
+        run: |
+          brew install cmake ninja
+
+      - name: Setup cross-compilation toolchains
+        run: |
+          # Add cross-compilation toolchains tap
+          brew tap messense/macos-cross-toolchains
+
+          # Install Linux cross-compilation toolchains (preferred over Zig)
+          echo "Installing Linux x86_64 cross-toolchain..."
+          brew install x86_64-unknown-linux-gnu || echo "x86_64-unknown-linux-gnu installation failed"
+
+          echo "Installing Linux aarch64 (ARM64) cross-toolchain..."
+          brew install aarch64-unknown-linux-gnu || echo "aarch64-unknown-linux-gnu installation failed"
+
+          # Install MinGW for Windows cross-compilation
+          echo "Installing MinGW for Windows cross-compilation..."
+          brew install mingw-w64
+
+          # Install Zig as fallback
+          echo "Installing Zig as fallback..."
+          brew install zig || echo "zig installation failed"
+
+      - name: Select Xcode version
+        run: |
+          sudo xcode-select -s /Applications/Xcode_15.2.app/Contents/Developer
+          xcodebuild -version
+          xcodebuild -showsdks
+
+      - name: Verify build tools
+        run: |
+          echo "=== Build Tools Verification ==="
+          cmake --version
+          ninja --version
+          xcodebuild -version
+          echo ""
+          echo "=== Cross-Compilation Tools ==="
+          zig version || echo "Zig not installed"
+          x86_64-unknown-linux-gnu-gcc --version || echo "Linux x64 toolchain not installed"
+          aarch64-unknown-linux-gnu-gcc --version || echo "Linux ARM64 toolchain not installed"
+          x86_64-w64-mingw32-gcc --version || echo "MinGW x64 not installed"
+          echo "==================================="
+
+      - name: Get build tool versions
+        id: build-tools
+        run: |
+          echo "cmake_version=$(cmake --version | head -n1 | cut -d' ' -f3)" >> $GITHUB_OUTPUT
+          echo "xcode_version=$(xcodebuild -version | head -n1 | cut -d' ' -f2)" >> $GITHUB_OUTPUT
+
+      - name: Cache Kotlin/Native
+        uses: actions/cache@v5
+        with:
+          path: ~/.konan
+          key: ${{ runner.os }}-konan-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-konan-
+
+      - name: Cache Capstone builds
+        uses: actions/cache@v5
+        with:
+          path: |
+            build/capstone
+            library/interop/lib
+            library/interop/capstone/include
+          key: ${{ runner.os }}-capstone-jvm-${{ hashFiles('library/interop/capstone/**') }}-cmake-${{ steps.build-tools.outputs.cmake_version }}-xcode-${{ steps.build-tools.outputs.xcode_version }}
+          restore-keys: |
+            ${{ runner.os }}-capstone-jvm-${{ hashFiles('library/interop/capstone/**') }}-cmake-${{ steps.build-tools.outputs.cmake_version }}-
+            ${{ runner.os }}-capstone-jvm-${{ hashFiles('library/interop/capstone/**') }}-
+            ${{ runner.os }}-capstone-
+
+      - name: Setup PATH for Homebrew tools
+        run: |
+          echo "/opt/homebrew/bin:/opt/homebrew/sbin:$PATH" >> $GITHUB_PATH
 
       - name: Extract version from tag
         id: version
@@ -52,10 +136,27 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Publishing version: $VERSION (tag: $TAG)"
 
+      - name: Build Capstone for all targets
+        run: |
+          echo "=== Building Capstone for all Apple platforms ==="
+          ./gradlew buildCapstoneAll --stacktrace
+
+      - name: Verify Capstone build
+        run: |
+          echo "=== Capstone Build Verification ==="
+          echo "=== Native Libraries (Kotlin/Native) ==="
+          for target in macosX64 macosArm64 iosArm64 iosX64 iosSimulatorArm64 tvosArm64 tvosX64 tvosSimulatorArm64 watchosArm64 watchosX64 watchosSimulatorArm64; do
+            if [ -f "library/interop/lib/$target/libcapstone.a" ]; then
+              echo "✓ $target: $(ls -lh library/interop/lib/$target/libcapstone.a | awk '{print $5}')"
+            else
+              echo "✗ $target: missing"
+            fi
+          done
+
       - name: Build XCFramework
         run: |
-          echo "Building XCFramework for all Apple platforms..."
-          ./gradlew :library:assembleKotstoneKitReleaseXCFramework --no-daemon --stacktrace
+          echo "=== Building XCFramework for all Apple platforms ==="
+          ./gradlew :library:assembleKotstoneKitReleaseXCFramework --stacktrace
 
       - name: Verify XCFramework
         run: |
