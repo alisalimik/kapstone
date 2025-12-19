@@ -1,4 +1,4 @@
-# Kapstone
+# Kotstone
 
 [![Build](https://github.com/alisalimik/kotstone/actions/workflows/build.yml/badge.svg)](https://github.com/alisalimik/kotstone/actions/workflows/build.yml)
 [![Test](https://github.com/alisalimik/kotstone/actions/workflows/test.yml/badge.svg)](https://github.com/alisalimik/kotstone/actions/workflows/test.yml)
