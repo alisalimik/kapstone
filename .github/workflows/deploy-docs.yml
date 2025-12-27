@@ -59,7 +59,29 @@ jobs:
 
       - name: Generate Dokka HTML documentation
         run: ./gradlew library:dokkaGenerateHtml --stacktrace
+        
+      - name: Inject Google site verification meta
+        run: |
+          set -euo pipefail
 
+          META='<meta name="google-site-verification" content="uv9LgjmMLyqXHKBXzP5tcbxJ9eHiXWYT71QLCWaE-1E" />'
+          TARGET_DIR="library/build/dokka/html"
+
+          find "$TARGET_DIR" -type f -name '*.html' | while read -r file; do
+            if ! grep -q 'google-site-verification' "$file"; then
+              sed -i.bak "s|<head>|<head>\n    $META|" "$file"
+              rm "${file}.bak"
+            fi
+          done
+
+      - name: Verify meta injection
+        run: |
+          grep -R 'google-site-verification' library/build/dokka/html | wc -l
+
+      - name: Upload documentation artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: library/build/dokka/html
       - name: Upload documentation artifact
         uses: actions/upload-pages-artifact@v4
         with:
