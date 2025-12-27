@@ -18,7 +18,7 @@ fun Project.configureDokka() {
                 documentedVisibilities.add(VisibilityModifier.Public)
                 sourceLink {
                     localDirectory.set(project.file("src/$name/kotlin"))
-                    remoteUrl(getGithubLink())
+                    remoteUrl(getGithubLink() + "/tree/main/library/src/commonMain/kotlin")
                     remoteLineSuffix.set("#L")
                 }
             }
