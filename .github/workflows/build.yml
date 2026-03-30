@@ -131,7 +131,7 @@ jobs:
 
       - name: Setup Android SDK
         if: matrix.setup-android
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
 
       - name: Install Android components
         if: matrix.setup-android
@@ -417,7 +417,7 @@ jobs:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
 
       - name: Install Android SDK components
         run: |
